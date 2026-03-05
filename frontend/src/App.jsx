@@ -8,26 +8,29 @@ import Dashboard from './pages/Dashboard';
 import StoreManagement from './pages/StoreManagement';
 import AddProduct from './pages/AddProduct';
 import Inventory from './pages/Inventory';
-// import Customers from './pages/Customers';
-// import Analytics from './pages/Analytics';
-// // import StockMovement from './pages/StockMovement';
-// // import Notifications from './pages/Notifications';
-// // import Settings from './pages/Settings';
-// // import Sales from './pages/Sales';
-// // import PaymentInfo from './pages/PaymentInfo';
+import Customers from './pages/Customers';
+import CustomerDetails from './pages/CustomerDetails'; // 
+import Analytics from './pages/Analytics';
+import StockMovement from './pages/StockMovement';
+import Notifications from './pages/Notifications';
+import Settings from './pages/Settings';
+import Sales from './pages/Sales';
+import PaymentInfo from './pages/PaymentInfo';
 
-// // Import Components
-// import PrivateRoute from './components/PrivateRoute';
-// import Layout from './components/Layout';
+// Import Components
+import PrivateRoute from './components/PrivateRoute';
+import Layout from './components/Layout';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is authenticated
-    const token = localStorage.getItem('token');
-    if (token) {
+    // Check if user is authenticated - check for user object in localStorage
+    const user = localStorage.getItem('user');
+    console.log('Auth check - user:', user);
+    
+    if (user) {
       setIsAuthenticated(true);
     }
     setLoading(false);
@@ -65,6 +68,7 @@ function App() {
             <Route path="/management" element={<AddProduct />} />
             <Route path="/inventory" element={<Inventory />} />
             <Route path="/customers" element={<Customers />} />
+            <Route path="/customers/:id" element={<CustomerDetails />} /> 
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/stock-movement" element={<StockMovement />} />
             <Route path="/notifications" element={<Notifications />} />
