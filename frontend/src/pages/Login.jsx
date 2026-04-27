@@ -1,5 +1,5 @@
-import  { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 
 // Configure axios to send cookies with every request
@@ -24,14 +24,14 @@ const Login = () => {
         password
       });
       
-      console.log('✅ Login successful');
+      console.log('✅ Login successful', response.data);
       
       // Store user info (but NOT the token - it's in HttpOnly cookie)
       if (response.data.user) {
         localStorage.setItem('user', JSON.stringify(response.data.user));
       }
       
-       window.location.href = '/dashboard';
+      window.location.href = '/dashboard';
       
     } catch (err) {
       console.error('❌ Login error:', err);
@@ -56,13 +56,13 @@ const Login = () => {
         
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
-            <label className="block text-gray-700 mb-2">Username</label>
+            <label className="block text-gray-700 mb-2">Username or Email</label>
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Enter username"
+              placeholder="Enter username or email"
               required
               disabled={loading}
             />
@@ -100,12 +100,27 @@ const Login = () => {
           </button>
         </form>
         
-        <p className="text-center mt-4 text-sm">
-          Forgot your password? <a href="/reset" className="text-blue-500 hover:underline">Reset here</a>
-        </p>
+        <div className="mt-4 text-center space-y-2">
+          <p className="text-sm">
+            <Link to="/reset" className="text-blue-500 hover:underline">
+              Forgot your password?
+            </Link>
+          </p>
+          <p className="text-sm text-gray-600">
+            Don't have an account?{' '}
+            <Link to="/signup" className="text-blue-500 hover:underline font-medium">
+              Sign up here
+            </Link>
+          </p>
+        </div>
 
-        <div className="mt-4 text-xs text-gray-400 text-center border-t pt-4">
-          <p>Demo: sari / sari123</p>
+        <div className="mt-6 pt-4 border-t">
+          <p className="text-xs text-gray-400 text-center">
+            Demo credentials: sari / sari123
+          </p>
+          <p className="text-xs text-gray-400 text-center mt-1">
+            Or register a new account
+          </p>
         </div>
       </div>
     </div>

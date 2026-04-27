@@ -21,4 +21,4 @@ router.get('/financial', analyticsController.getFinancialReports);
 // Trend Analysis
 router.get('/trends', analyticsController.getTrendAnalysis);
 
-module.exports = router;
+module.exports = router; 

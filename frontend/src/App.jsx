@@ -14,6 +14,7 @@ import Analytics from './pages/Analytics';
 import StockMovement from './pages/StockMovement';
 import Notifications from './pages/Notifications';
 import Settings from './pages/Settings';
+import SignUp from './pages/signup';
 import Sales from './pages/Sales';
 import PaymentInfo from './pages/PaymentInfo';
 
@@ -54,8 +55,12 @@ function App() {
             isAuthenticated ? 
             <Navigate to="/dashboard" replace /> : 
             <Login setIsAuthenticated={setIsAuthenticated} />
-          } 
+            
+          }
+           
         />
+         <Route path="/signup" element={<SignUp />} />
+
 
         {/* Protected Routes with Layout */}
         <Route element={<PrivateRoute isAuthenticated={isAuthenticated} />}>
@@ -73,6 +78,8 @@ function App() {
             <Route path="/stock-movement" element={<StockMovement />} />
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/settings" element={<Settings />} />
+           
+            
           </Route>
         </Route>
 
