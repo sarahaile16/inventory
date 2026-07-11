@@ -4,7 +4,8 @@ import axios from 'axios';
 
 // Configure axios to send cookies with every request
 axios.defaults.withCredentials = true;
-axios.defaults.baseURL = 'http://localhost:5000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+axios.defaults.baseURL = API_URL;
 
 const Login = () => {
   const [username, setUsername] = useState('');

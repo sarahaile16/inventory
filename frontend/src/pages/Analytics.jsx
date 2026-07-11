@@ -26,7 +26,8 @@ const Analytics = () => {
   const fetchAnalyticsData = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`http://localhost:5000/api/analytics?range=${dateRange}`);
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      const response = await axios.get(`${API_URL}/analytics?range=${dateRange}`);
       setAnalyticsData(response.data);
     } catch (error) {
       console.error('Error fetching analytics:', error);

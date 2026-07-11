@@ -37,7 +37,8 @@ const Inventory = () => {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:5000/api/products');
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      const response = await axios.get(`${API_URL}/products`);
       setProducts(response.data);
       setFilteredProducts(response.data);
     } catch (error) {
@@ -49,7 +50,8 @@ const Inventory = () => {
 
   const fetchCategories = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/settings/categories');
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      const response = await axios.get(`${API_URL}/settings/categories`);
       setCategories(response.data);
     } catch (error) {
       console.error('Error fetching categories:', error);
@@ -91,7 +93,8 @@ const Inventory = () => {
     if (!productToDelete) return;
 
     try {
-      await axios.delete(`http://localhost:5000/api/products/${productToDelete._id}`);
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      await axios.delete(`${API_URL}/products/${productToDelete._id}`);
       setProducts(products.filter(p => p._id !== productToDelete._id));
       setShowDeleteConfirm(false);
       setProductToDelete(null);
@@ -134,8 +137,9 @@ const Inventory = () => {
       }
       
       // Send update request
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
       const response = await axios.put(
-        `http://localhost:5000/api/products/${selectedProduct._id}`,
+        `${API_URL}/products/${selectedProduct._id}`,
         formData,
         {
           headers: {

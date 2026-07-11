@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { 
+import {
   FiPackage, FiEdit, FiTrash2, FiEye,
   FiArrowLeft, FiArrowRight
 } from 'react-icons/fi';
@@ -21,7 +21,7 @@ const Dashboard = () => {
   const [error, setError] = useState(null);
   const itemsPerPage = 5;
   const navigate = useNavigate();
-  const loggedinuser =JSON.parse(localStorage.getItem("user"));
+  const loggedinuser = JSON.parse(localStorage.getItem("user"));
   console.log(loggedinuser.role);
 
   useEffect(() => {
@@ -31,22 +31,23 @@ const Dashboard = () => {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:5000/api/products');
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      const response = await axios.get(`${API_URL}/products`);
       console.log('Products loaded:', response.data);
       setProducts(response.data);
-      
+
       // Calculate stats from products
       const totalProducts = response.data.length;
       const lowStockItems = response.data.filter(p => p.stock <= p.restockLevel).length;
       const totalValue = response.data.reduce((sum, p) => sum + (p.price * p.stock), 0);
-      
+
       setStats(prev => ({
         ...prev,
         totalProducts,
         lowStockItems,
         totalValue
       }));
-      
+
     } catch (error) {
       console.error('Error fetching products:', error);
       setError('Failed to load dashboard data');
@@ -58,7 +59,8 @@ const Dashboard = () => {
   const handleDelete = async (id, name) => {
     if (window.confirm(`Are you sure you want to delete ${name}?`)) {
       try {
-        await axios.delete(`http://localhost:5000/api/products/${id}`);
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+        await axios.delete(`${API_URL}/products/${id}`);
         fetchProducts(); // Refresh the list
       } catch (error) {
         console.error('Error deleting product:', error);
@@ -92,7 +94,7 @@ const Dashboard = () => {
       <div className="flex items-center justify-center h-screen">
         <div className="bg-red-100 border border-red-400 text-red-700 px-6 py-4 rounded">
           <p>{error}</p>
-          <button 
+          <button
             onClick={fetchProducts}
             className="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
           >
@@ -109,15 +111,15 @@ const Dashboard = () => {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
         <div className="text-sm text-gray-500">
-          {new Date().toLocaleDateString('en-US', { 
-            weekday: 'long', 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
+          {new Date().toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
           })}
         </div>
       </div>
-      
+
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="bg-white p-6 rounded-lg shadow">
@@ -125,19 +127,19 @@ const Dashboard = () => {
           <p className="text-2xl font-bold">ETB {stats.totalSales.toLocaleString()}</p>
           <p className="text-xs text-gray-400 mt-2">Last 30 days</p>
         </div>
-        
+
         <div className="bg-white p-6 rounded-lg shadow">
           <p className="text-gray-500 text-sm">Total Products</p>
           <p className="text-2xl font-bold">{stats.totalProducts}</p>
           <p className="text-xs text-gray-400 mt-2">In inventory</p>
         </div>
-        
+
         <div className="bg-white p-6 rounded-lg shadow">
           <p className="text-gray-500 text-sm">Inventory Value</p>
           <p className="text-2xl font-bold text-green-600">ETB {stats.totalValue.toLocaleString()}</p>
           <p className="text-xs text-gray-400 mt-2">Total stock value</p>
         </div>
-        
+
         <div className="bg-white p-6 rounded-lg shadow">
           <p className="text-gray-500 text-sm">Low Stock Items</p>
           <p className="text-2xl font-bold text-yellow-600">{stats.lowStockItems}</p>
@@ -150,8 +152,8 @@ const Dashboard = () => {
         <div className="p-6 border-b">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold">Warehouse Inventory</h2>
-            <Link 
-              to="/management" 
+            <Link
+              to="/management"
               className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 text-sm flex items-center"
             >
               <FiPackage className="mr-2" /> Add Product
@@ -195,11 +197,10 @@ const Dashboard = () => {
                     <td className="px-6 py-4 font-medium">{product.name}</td>
                     <td className="px-6 py-4">ETB {product.price?.toLocaleString()}</td>
                     <td className="px-6 py-4">
-                      <span className={`px-2 py-1 text-xs rounded-full ${
-                        product.stock <= product.restockLevel 
-                          ? 'bg-red-100 text-red-800' 
+                      <span className={`px-2 py-1 text-xs rounded-full ${product.stock <= product.restockLevel
+                          ? 'bg-red-100 text-red-800'
                           : 'bg-green-100 text-green-800'
-                      }`}>
+                        }`}>
                         {product.stock}
                       </span>
                     </td>
@@ -207,22 +208,22 @@ const Dashboard = () => {
                     <td className="px-6 py-4">{product.unit}</td>
                     <td className="px-6 py-4">
                       <div className="flex space-x-2">
-                        <button 
+                        <button
                           className="text-blue-600 hover:text-blue-800"
                           onClick={() => navigate(`/inventory/view/${product._id}`)}
                         >
                           <FiEye size={18} />
                         </button>
                         {loggedinuser.role === "admin" &&
-                        <button 
-                          className="text-green-600 hover:text-green-800"
-                          onClick={() => navigate(`/management/edit/${product._id}`)}
-                        >
-                          <FiEdit size={18} />
-                        </button>
+                          <button
+                            className="text-green-600 hover:text-green-800"
+                            onClick={() => navigate(`/management/edit/${product._id}`)}
+                          >
+                            <FiEdit size={18} />
+                          </button>
                         }
-                        
-                        <button 
+
+                        <button
                           className="text-red-600 hover:text-red-800"
                           onClick={() => handleDelete(product._id, product.name)}
                         >
@@ -255,11 +256,10 @@ const Dashboard = () => {
               <button
                 onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                 disabled={currentPage === 1}
-                className={`px-3 py-1 border rounded ${
-                  currentPage === 1 
-                    ? 'text-gray-300 cursor-not-allowed' 
+                className={`px-3 py-1 border rounded ${currentPage === 1
+                    ? 'text-gray-300 cursor-not-allowed'
                     : 'text-gray-600 hover:bg-gray-50'
-                }`}
+                  }`}
               >
                 Previous
               </button>
@@ -269,11 +269,10 @@ const Dashboard = () => {
               <button
                 onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                 disabled={currentPage === totalPages}
-                className={`px-3 py-1 border rounded ${
-                  currentPage === totalPages
+                className={`px-3 py-1 border rounded ${currentPage === totalPages
                     ? 'text-gray-300 cursor-not-allowed'
                     : 'text-gray-600 hover:bg-gray-50'
-                }`}
+                  }`}
               >
                 Next
               </button>

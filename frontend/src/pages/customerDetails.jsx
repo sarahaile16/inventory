@@ -44,7 +44,8 @@ const CustomerDetails = () => {
       setLoading(true);
       console.log('🔍 Fetching customer ID:', id);
       
-      const response = await axios.get(`http://localhost:5000/api/customers/${id}`);
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      const response = await axios.get(`${API_URL}/customers/${id}`);
       console.log('✅ Customer data:', response.data);
       
       setCustomer(response.data);
@@ -164,7 +165,8 @@ const CustomerDetails = () => {
   const handleDeleteCustomer = async () => {
     try {
       // In real app, call API to delete
-      // await axios.delete(`http://localhost:5000/api/customers/${id}`);
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      // await axios.delete(`${API_URL}/customers/${id}`);
       
       alert('Customer deleted successfully!');
       navigate('/customers');
