@@ -1,6 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { FiBell, FiCheck, FiX, FiClock, FiAlertCircle, FiTruck } from 'react-icons/fi';
+import { Link } from 'react-router-dom';
+import axios from 'axios';
+import { FiBell, FiCheck, FiX, FiClock, FiAlertCircle, FiTruck, FiDollarSign } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
+import { getUserRole } from '../auth/roles';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+
+const typeIcon = {
+  deadline: FiClock,
+  rest_payment: FiDollarSign,
+  low_stock: FiAlertCircle,
+  stock_movement: FiTruck
+};
 
 const Notifications = () => {
   const [notifications, setNotifications] = useState([]);
@@ -15,85 +27,14 @@ const Notifications = () => {
     try {
       setLoading(true);
       
-      // Mock data based on your screenshot
-      const mockNotifications = [
-        {
-          id: 1,
-          message: '50 units of Main Plate (18 Pieces) moved to store.',
-          date: 'Oct 25, 2025',
-          time: '10:30 AM',
-          type: 'stock_movement',
-          read: false,
-          icon: FiTruck,
-          color: 'blue'
-        },
-        {
-          id: 2,
-          message: 'VÄRDERA (6 pieces) is running low on stock.',
-          date: 'Oct 25, 2025',
-          time: '09:15 AM',
-          type: 'low_stock',
-          read: false,
-          icon: FiAlertCircle,
-          color: 'red'
-        },
-        {
-          id: 3,
-          message: 'MOSSMAL (Bowl, dot pattern/light green, 6 ½") is running low on stock.',
-          date: 'Oct 25, 2025',
-          time: '09:15 AM',
-          type: 'low_stock',
-          read: false,
-          icon: FiAlertCircle,
-          color: 'red'
-        },
-        {
-          id: 4,
-          message: '50 units of GLADELIG (18 Piece Dinner Ware set) moved to store.',
-          date: 'Oct 25, 2025',
-          time: '08:45 AM',
-          type: 'stock_movement',
-          read: true,
-          icon: FiTruck,
-          color: 'blue'
-        },
-        {
-          id: 5,
-          message: '20 units of GODMIDDAG (18 Piece) moved to store.',
-          date: 'Oct 25, 2025',
-          time: '08:30 AM',
-          type: 'stock_movement',
-          read: true,
-          icon: FiTruck,
-          color: 'blue'
-        },
-        {
-          id: 6,
-          message: '30 units of GLADELIG (18 Piece Dinner Ware set) moved to store.',
-          date: 'Oct 25, 2025',
-          time: 'Yesterday',
-          type: 'stock_movement',
-          read: true,
-          icon: FiTruck,
-          color: 'blue'
-        },
-        {
-          id: 7,
-          message: '50 units of FÄRGKLAR (18 Piece Dinner Ware set) moved to store.',
-          date: 'Oct 25, 2025',
-          time: 'Yesterday',
-          type: 'stock_movement',
-          read: true,
-          icon: FiTruck,
-          color: 'blue'
-        }
-      ];
-      
-      setNotifications(mockNotifications);
-      
-      // If using real API:
-      // const response = await axios.get('http://localhost:5000/api/notifications');
-      // setNotifications(response.data);
+      const response = await axios.get(`${API_URL}/notifications`, {
+        params: { role: getUserRole() }
+      });
+      const items = (Array.isArray(response.data) ? response.data : []).map((item) => ({
+        ...item,
+        icon: typeIcon[item.type] || FiBell
+      }));
+      setNotifications(items);
     } catch (error) {
       console.error('Error fetching notifications:', error);
       toast.error('Failed to load notifications');
@@ -191,7 +132,7 @@ const Notifications = () => {
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Notifications</h1>
-        <p className="text-gray-600">Stay updated with your inventory</p>
+        <p className="text-gray-600">Deadline alerts include customer orders and rest payment still due</p>
       </div>
 
       {/* Notification Stats */}
@@ -205,9 +146,9 @@ const Notifications = () => {
           <p className="text-2xl font-bold text-blue-600">{unreadCount}</p>
         </div>
         <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-gray-500 text-sm">Low Stock Alerts</p>
-          <p className="text-2xl font-bold text-red-600">
-            {notifications.filter(n => n.type === 'low_stock').length}
+          <p className="text-gray-500 text-sm">Deadline / rest due</p>
+          <p className="text-2xl font-bold text-amber-600">
+            {notifications.filter((n) => n.type === 'deadline').length}
           </p>
         </div>
       </div>
@@ -329,13 +270,15 @@ const Notifications = () => {
                       {/* Type badge */}
                       <div className="mt-2">
                         <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${
-                          notification.type === 'stock_movement' 
+                          notification.type === 'deadline'
+                            ? 'bg-amber-100 text-amber-800'
+                            : notification.type === 'stock_movement' 
                             ? 'bg-blue-100 text-blue-800'
                             : notification.type === 'low_stock'
                             ? 'bg-red-100 text-red-800'
                             : 'bg-gray-100 text-gray-800'
                         }`}>
-                          {notification.type === 'stock_movement' ? 'Stock Movement' : 'Low Stock Alert'}
+                          {notification.type === 'deadline' ? 'Deadline + rest payment' : notification.type === 'low_stock' ? 'Low Stock Alert' : 'Stock Movement'}
                         </span>
                       </div>
                     </div>
@@ -356,6 +299,13 @@ const Notifications = () => {
       <div className="bg-white rounded-lg shadow p-4">
         <h3 className="font-semibold mb-3">Quick Actions</h3>
         <div className="flex flex-wrap gap-2">
+          <Link
+            to="/orders"
+            className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 flex items-center"
+          >
+            <FiClock className="mr-2" />
+            Open orders
+          </Link>
           <button 
             onClick={() => window.location.href = '/stock-movement'}
             className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center"

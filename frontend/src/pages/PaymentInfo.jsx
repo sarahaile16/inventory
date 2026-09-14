@@ -1,18 +1,29 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiCheck, FiUpload, FiDollarSign } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import axios from 'axios';
+import { canSeeMoney } from '../auth/roles';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 
 const PaymentInfo = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const saleState = location.state || {};
+  const showMoney = canSeeMoney();
   const [loading, setLoading] = useState(false);
+  const startingTotal = Number(saleState.total || 0);
+  const startingFirst = startingTotal ? Number((startingTotal * 0.5).toFixed(2)) : 0;
   const [paymentData, setPaymentData] = useState({
-    transactionId: 'FS-1003484885885',
+    transactionId: saleState.transactionId || `FS-${Date.now()}`,
     paymentMethod: 'Bank Transfer',
-    priceInETB: 187500,
+    priceInETB: startingTotal,
+    firstPayment: startingFirst,
+    deadline: saleState.deadline || '',
     uploadProof: null
   });
+  const restPayment = Math.max(0, Number(paymentData.priceInETB || 0) - Number(paymentData.firstPayment || 0));
 
   const [paymentMethods] = useState([
     'Bank Transfer',
@@ -54,31 +65,37 @@ const PaymentInfo = () => {
         return;
       }
 
-      // Create FormData for file upload
-      const formData = new FormData();
-      formData.append('transactionId', paymentData.transactionId);
-      formData.append('paymentMethod', paymentData.paymentMethod);
-      formData.append('priceInETB', paymentData.priceInETB);
-      if (paymentData.uploadProof) {
-        formData.append('paymentProof', paymentData.uploadProof);
+      if (!paymentData.deadline) {
+        toast.error('Order deadline is required');
+        return;
       }
 
-      // If using real API:
-      // await axios.post('http://localhost:5000/api/sales/payment', formData, {
-      //   headers: {
-      //     'Content-Type': 'multipart/form-data'
-      //   }
-      // });
+      if (Number(paymentData.firstPayment) < 0 || Number(paymentData.firstPayment) > Number(paymentData.priceInETB || 0)) {
+        toast.error('First payment must be between 0 and the whole payment');
+        return;
+      }
+
+      // Create FormData for file upload
+      const formData = new FormData();
+      const whole = Number(paymentData.priceInETB || saleState.total || 0);
+      const first = Number(paymentData.firstPayment || 0);
+      await axios.post(`${API_URL}/sales`, {
+        transactionId: paymentData.transactionId,
+        paymentMethod: paymentData.paymentMethod,
+        totalAmount: whole,
+        firstPayment: first,
+        restPayment: Math.max(0, whole - first),
+        deadline: paymentData.deadline,
+        status: 'pending',
+        customerName: saleState.buyerInfo?.fullName || '',
+        cart: saleState.cart || []
+      });
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      toast.success(showMoney ? 'Payment saved successfully!' : 'Order saved with deadline.');
       
-      toast.success('Payment saved successfully!');
-      
-      // Navigate back to sales or invoice
       setTimeout(() => {
-        navigate('/store/sales');
-      }, 1500);
+        navigate('/orders');
+      }, 800);
       
     } catch (error) {
       console.error('Error saving payment:', error);
@@ -184,10 +201,23 @@ const PaymentInfo = () => {
               </p>
             </div>
 
-            {/* Price in ETB */}
             <div>
               <label className="block text-gray-700 mb-2">
-                Price in ETB
+                Order deadline
+                <span className="text-red-500 ml-1">*</span>
+              </label>
+              <input
+                type="date"
+                name="deadline"
+                value={paymentData.deadline}
+                onChange={handleInputChange}
+                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-gray-700 mb-2">
+                Whole payment (ETB)
                 <span className="text-red-500 ml-1">*</span>
               </label>
               <div className="relative">
@@ -198,12 +228,39 @@ const PaymentInfo = () => {
                   value={paymentData.priceInETB}
                   onChange={handleInputChange}
                   className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Enter amount"
+                  placeholder="Full order amount"
                   required
                   min="0"
                   step="0.01"
                 />
               </div>
+            </div>
+            <div>
+              <label className="block text-gray-700 mb-2">
+                First payment (ETB)
+                <span className="text-red-500 ml-1">*</span>
+              </label>
+              <input
+                type="number"
+                name="firstPayment"
+                value={paymentData.firstPayment}
+                onChange={handleInputChange}
+                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                placeholder="Paid now"
+                required
+                min="0"
+                step="0.01"
+              />
+              <p className="text-xs text-gray-400 mt-1">Customer pays this now. The rest is due on delivery.</p>
+            </div>
+            <div>
+              <label className="block text-gray-700 mb-2">Rest payment on delivery (ETB)</label>
+              <input
+                type="number"
+                value={restPayment}
+                readOnly
+                className="w-full px-4 py-2 border rounded-lg bg-gray-50 text-gray-700"
+              />
             </div>
           </div>
 
@@ -225,11 +282,21 @@ const PaymentInfo = () => {
                   {paymentData.uploadProof ? 'Uploaded' : 'Not uploaded'}
                 </span>
               </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Deadline:</span>
+                <span className="font-medium">{paymentData.deadline || 'Not set'}</span>
+              </div>
               <div className="flex justify-between pt-2 border-t">
-                <span className="font-semibold">Total Amount:</span>
-                <span className="text-xl font-bold text-green-600">
-                  {formatCurrency(paymentData.priceInETB)}
-                </span>
+                <span className="text-gray-600">Whole payment:</span>
+                <span className="font-medium">{formatCurrency(paymentData.priceInETB)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">First payment now:</span>
+                <span className="font-medium text-teal-700">{formatCurrency(paymentData.firstPayment)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-semibold">Rest on delivery:</span>
+                <span className="text-xl font-bold text-amber-600">{formatCurrency(restPayment)}</span>
               </div>
             </div>
           </div>
@@ -272,7 +339,8 @@ const PaymentInfo = () => {
         <ul className="text-sm text-blue-700 space-y-1">
           <li>• Transaction ID should be unique for each sale</li>
           <li>• Upload clear proof of payment (receipt, screenshot, etc.)</li>
-          <li>• Verify the amount before saving</li>
+          <li>• Enter the whole price, the first payment now, and keep the rest for delivery</li>
+          <li>• Admin is notified when the deadline is near and rest payment is still due</li>
           <li>• For bank transfers, include reference number in transaction ID</li>
         </ul>
       </div>

@@ -1,13 +1,41 @@
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
-const User = require('../models/User'); // Add this import
+const mongoose = require('mongoose');
+const User = require('../models/User');
+
+const memoryAccounts = [
+  { id: 1, fullName: 'Sari Admin', username: 'sari', email: 'sari@example.com', phone: '0911000001', password: 'sari123', role: 'admin', requestedRole: '', status: 'Active' },
+  { id: 2, fullName: 'Store Manager', username: 'manager', email: 'manager@example.com', phone: '0911000002', password: 'manager123', role: 'management', requestedRole: 'management', status: 'Active' },
+  { id: 3, fullName: 'Store Staff', username: 'staff', email: 'staff@example.com', phone: '0911000003', password: 'staff123', role: 'staff', requestedRole: 'staff', status: 'Active' },
+  { id: 4, fullName: 'New User', username: 'user', email: 'user@example.com', phone: '0911000004', password: 'user123', role: 'user', requestedRole: 'staff', status: 'Pending' }
+];
+
+const ALLOWED_ROLES = ['admin', 'management', 'staff', 'user'];
+
+const normalizeRequestedRole = (role) => {
+  const value = String(role || '').trim().toLowerCase();
+  if (value === 'management' || value === 'manager') return 'management';
+  return 'staff';
+};
+
+const publicUser = (user) => ({
+  id: user._id || user.id,
+  fullName: user.fullName || user.name,
+  username: user.username || user.name,
+  email: user.email,
+  phone: user.phone,
+  role: user.role,
+  requestedRole: user.requestedRole || '',
+  status: user.status || 'Active',
+  companyName: user.companyName || ''
+});
 
 // ========== HELPER FUNCTIONS ==========
 const generateToken = (user) => {
   return jwt.sign(
     { 
-      id: user._id, 
+      id: user._id || user.id, 
       username: user.username, 
       role: user.role 
     },
@@ -27,7 +55,7 @@ const setCookieOptions = () => ({
 // ========== REGISTER ROUTE ==========
 router.post('/register', async (req, res) => {
   try {
-    const { fullName, username, email, phone, password, role, companyName } = req.body;
+    const { fullName, username, email, phone, password, requestedRole, role, companyName } = req.body;
     
     console.log('📝 Registration attempt:', { username, email });
     
@@ -74,36 +102,42 @@ router.post('/register', async (req, res) => {
       });
     }
     
-    // Create new user
+    const chosenRole = normalizeRequestedRole(requestedRole || role);
     const newUser = new User({
       fullName,
       username,
       email,
       phone,
       password,
-      role: role || 'staff',
+      role: 'user',
+      requestedRole: chosenRole,
       companyName: companyName || '',
-      status: 'Active',
+      status: 'Pending',
       createdAt: new Date(),
       lastLogin: null
     });
     
     await newUser.save();
+
+    memoryAccounts.push({
+      id: Date.now(),
+      fullName,
+      username,
+      email,
+      phone,
+      password,
+      role: 'user',
+      requestedRole: chosenRole,
+      status: 'Pending',
+      companyName: companyName || ''
+    });
     
-    console.log('✅ User registered successfully:', username);
+    console.log('✅ User registered as pending user:', username, 'requested', chosenRole);
     
     res.status(201).json({
       success: true,
-      message: 'Registration successful! Please login.',
-      user: {
-        id: newUser._id,
-        fullName: newUser.fullName,
-        username: newUser.username,
-        email: newUser.email,
-        phone: newUser.phone,
-        role: newUser.role,
-        companyName: newUser.companyName
-      }
+      message: 'Account created as User. An admin will approve your requested role.',
+      user: publicUser(newUser)
     });
     
   } catch (error) {
@@ -126,28 +160,22 @@ router.post('/login', async (req, res) => {
       $or: [{ username: username }, { email: username }] 
     });
     
-    // If no user in DB, check hardcoded admin for testing
     if (!user) {
-      if (username === 'sari' && password === 'sari123') {
-        const token = jwt.sign(
-          { id: 1, username: 'sari', role: 'admin' },
-          process.env.JWT_SECRET || 'your-secret-key',
-          { expiresIn: '1h' }
-        );
-        
-        res.cookie('token', token, setCookieOptions());
-        
-        return res.json({
-          success: true,
-          user: {
-            id: 1,
-            username: 'sari',
-            role: 'admin'
-          }
-        });
-      } else {
+      const demo = memoryAccounts.find((account) =>
+        (account.email === username || account.username === username) &&
+        account.password === password
+      );
+
+      if (!demo) {
         return res.status(401).json({ message: 'Invalid credentials' });
       }
+
+      const token = generateToken(demo);
+      res.cookie('token', token, setCookieOptions());
+      return res.json({
+        success: true,
+        user: publicUser(demo)
+      });
     }
     
     // Check password for database user
@@ -170,15 +198,7 @@ router.post('/login', async (req, res) => {
     
     res.json({
       success: true,
-      user: {
-        id: user._id,
-        fullName: user.fullName,
-        username: user.username,
-        email: user.email,
-        phone: user.phone,
-        role: user.role,
-        companyName: user.companyName
-      }
+      user: publicUser(user)
     });
     
   } catch (error) {
@@ -238,15 +258,7 @@ router.get('/me', async (req, res) => {
     
     if (user) {
       res.json({
-        user: {
-          id: user._id,
-          fullName: user.fullName,
-          username: user.username,
-          email: user.email,
-          phone: user.phone,
-          role: user.role,
-          companyName: user.companyName
-        }
+        user: publicUser(user)
       });
     } else {
       // Fallback for hardcoded user
@@ -260,6 +272,55 @@ router.get('/me', async (req, res) => {
     }
   } catch (error) {
     res.status(401).json({ message: 'Invalid token' });
+  }
+});
+
+router.get('/users', async (req, res) => {
+  try {
+    const dbUsers = await User.find().select('-password').sort({ createdAt: -1 });
+    if (dbUsers.length > 0) {
+      return res.json(dbUsers.map(publicUser));
+    }
+    return res.json(memoryAccounts.map(publicUser));
+  } catch (error) {
+    console.error('List users error:', error);
+    res.json(memoryAccounts.map(publicUser));
+  }
+});
+
+router.put('/users/:id', async (req, res) => {
+  try {
+    const nextRole = String(req.body.role || '').trim().toLowerCase();
+    if (!ALLOWED_ROLES.includes(nextRole)) {
+      return res.status(400).json({ message: 'Role must be admin, management, staff, or user' });
+    }
+
+    const nextStatus = nextRole === 'user' ? 'Pending' : 'Active';
+    let updated = null;
+
+    if (mongoose.Types.ObjectId.isValid(req.params.id) && String(req.params.id).length === 24) {
+      updated = await User.findByIdAndUpdate(
+        req.params.id,
+        { role: nextRole, status: nextStatus },
+        { new: true }
+      ).select('-password');
+    }
+
+    const memoryUser = memoryAccounts.find((account) => String(account.id) === String(req.params.id));
+    if (memoryUser) {
+      memoryUser.role = nextRole;
+      memoryUser.status = nextStatus;
+      updated = updated || memoryUser;
+    }
+
+    if (!updated) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({ success: true, user: publicUser(updated) });
+  } catch (error) {
+    console.error('Update user role error:', error);
+    res.status(500).json({ message: 'Server error while updating role' });
   }
 });
 

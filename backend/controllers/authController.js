@@ -5,6 +5,27 @@ const users = [
     email: 'sari@example.com',
     password: 'sari123',
     role: 'admin'
+  },
+  {
+    id: 2,
+    name: 'manager',
+    email: 'manager@example.com',
+    password: 'manager123',
+    role: 'management'
+  },
+  {
+    id: 3,
+    name: 'staff',
+    email: 'staff@example.com',
+    password: 'staff123',
+    role: 'staff'
+  },
+  {
+    id: 4,
+    name: 'member',
+    email: 'member@example.com',
+    password: 'member123',
+    role: 'member'
   }
 ];
 
@@ -58,7 +79,9 @@ const register = (req, res) => {
       name,
       email,
       password,
-      role: role || 'staff'
+      role: 'user',
+      requestedRole: role === 'management' || role === 'manager' ? 'management' : 'staff',
+      status: 'Pending'
     };
 
     users.push(newUser);

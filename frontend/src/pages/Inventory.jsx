@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
+import { can, canSeeMoney } from '../auth/roles';
 import { 
   FiSearch, FiEdit, FiTrash2, FiEye, FiPlus,
   FiArrowLeft, FiArrowRight, FiX, FiSave,
@@ -7,10 +9,15 @@ import {
   FiUpload, FiCamera, FiImage
 } from 'react-icons/fi';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+
 const Inventory = () => {
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [stockFilter, setStockFilter] = useState(searchParams.get('low') === '1' ? 'low' : 'all');
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -21,7 +28,11 @@ const Inventory = () => {
   const [categories, setCategories] = useState([]);
   const [uploadedImage, setUploadedImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
-  
+  const [saving, setSaving] = useState(false);
+  const canEdit = can('productEdit');
+  const canDelete = can('productDelete');
+  const canCreate = can('productCreate');
+  const showMoney = canSeeMoney();
   
   const itemsPerPage = 10;
 
@@ -32,15 +43,33 @@ const Inventory = () => {
 
   useEffect(() => {
     filterProducts();
-  }, [searchTerm, products]);
+  }, [searchTerm, products, stockFilter]);
+
+  useEffect(() => {
+    if (!products.length) return;
+
+    const viewId = searchParams.get('view');
+    const editId = searchParams.get('edit');
+    const match = (id) => products.find((p) => String(p._id) === String(id));
+
+    if (viewId) {
+      const product = match(viewId);
+      if (product) handleView(product);
+      setSearchParams({}, { replace: true });
+    } else if (editId && canEdit) {
+      const product = match(editId);
+      if (product) handleEdit(product);
+      setSearchParams({}, { replace: true });
+    }
+  }, [products, searchParams, setSearchParams]);
 
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
       const response = await axios.get(`${API_URL}/products`);
-      setProducts(response.data);
-      setFilteredProducts(response.data);
+      const list = Array.isArray(response.data) ? response.data : [];
+      setProducts(list);
+      setFilteredProducts(list);
     } catch (error) {
       console.error('Error fetching products:', error);
     } finally {
@@ -50,25 +79,32 @@ const Inventory = () => {
 
   const fetchCategories = async () => {
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
       const response = await axios.get(`${API_URL}/settings/categories`);
-      setCategories(response.data);
+      const list = Array.isArray(response.data)
+        ? response.data.map((cat) => (typeof cat === 'string' ? cat : cat.name || cat.label)).filter(Boolean)
+        : [];
+      setCategories(list);
     } catch (error) {
       console.error('Error fetching categories:', error);
     }
   };
 
   const filterProducts = () => {
-    if (!searchTerm.trim()) {
-      setFilteredProducts(products);
-      return;
+    let filtered = products;
+
+    if (stockFilter === 'low') {
+      filtered = filtered.filter((product) => Number(product.stock) <= Number(product.restockLevel));
     }
 
-    const filtered = products.filter(product =>
-      product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.productId?.toString().includes(searchTerm) ||
-      product.category?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter((product) =>
+        product.name?.toLowerCase().includes(term) ||
+        product.productId?.toString().includes(searchTerm) ||
+        product.category?.toLowerCase().includes(term)
+      );
+    }
+
     setFilteredProducts(filtered);
     setCurrentPage(1);
   };
@@ -93,7 +129,6 @@ const Inventory = () => {
     if (!productToDelete) return;
 
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
       await axios.delete(`${API_URL}/products/${productToDelete._id}`);
       setProducts(products.filter(p => p._id !== productToDelete._id));
       setShowDeleteConfirm(false);
@@ -120,39 +155,34 @@ const Inventory = () => {
   };
 
   const handleUpdateProduct = async () => {
+    if (!selectedProduct?.name || !selectedProduct?.category) {
+      alert('Product name and category are required');
+      return;
+    }
+
     try {
-      // Create form data for image upload
-      const formData = new FormData();
-      
-      // Append all product data
-      Object.keys(selectedProduct).forEach(key => {
-        if (key !== 'image' && key !== '_id') {
-          formData.append(key, selectedProduct[key]);
-        }
-      });
-      
-      // Append image if uploaded
-      if (uploadedImage) {
-        formData.append('image', uploadedImage);
-      }
-      
-      // Send update request
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-      const response = await axios.put(
-        `${API_URL}/products/${selectedProduct._id}`,
-        formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data'
-          }
-        }
-      );
-      
-      const updatedProducts = products.map(p => 
-        p._id === selectedProduct._id ? response.data : p
-      );
-      
-      setProducts(updatedProducts);
+      setSaving(true);
+      const payload = {
+        name: selectedProduct.name,
+        category: selectedProduct.category,
+        price: Number(selectedProduct.price) || 0,
+        stock: Number(selectedProduct.stock) || 0,
+        restockLevel: Number(selectedProduct.restockLevel) || 0,
+        location: selectedProduct.location || '',
+        unit: selectedProduct.unit || 'KIT',
+        batchNumber: selectedProduct.batchNumber || '',
+        itemId: selectedProduct.itemId || '',
+        serialNumber: selectedProduct.serialNumber || '',
+        expiryDate: selectedProduct.expiryDate || '',
+        partNumber: selectedProduct.partNumber || '',
+        image: uploadedImage && imagePreview ? imagePreview : selectedProduct.image
+      };
+
+      const response = await axios.put(`${API_URL}/products/${selectedProduct._id}`, payload);
+
+      setProducts(products.map((p) =>
+        String(p._id) === String(selectedProduct._id) ? response.data : p
+      ));
       setShowEditModal(false);
       setSelectedProduct(null);
       setUploadedImage(null);
@@ -160,7 +190,9 @@ const Inventory = () => {
       alert('Product updated successfully');
     } catch (error) {
       console.error('Error updating product:', error);
-      alert('Error updating product');
+      alert(error.response?.data?.message || 'Error updating product');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -171,15 +203,15 @@ const Inventory = () => {
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
 
   return (
-    <div className="p-6 bg-gray-100 min-h-screen">
+    <div className="p-4 sm:p-6 bg-gray-100 min-h-screen">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Inventory Management System</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Inventory Management System</h1>
         <p className="text-gray-600">Manage your products and stock</p>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
         <div className="bg-white rounded-lg shadow p-4">
           <div className="flex items-center">
             <div className="p-3 bg-blue-100 rounded-full mr-4">
@@ -198,9 +230,11 @@ const Inventory = () => {
               <FiDollarSign className="text-green-600" size={20} />
             </div>
             <div>
-              <p className="text-gray-500 text-sm">Total Value</p>
+              <p className="text-gray-500 text-sm">{showMoney ? 'Selling value' : 'Warehouse units'}</p>
               <p className="text-2xl font-bold">
-                ETB {products.reduce((sum, p) => sum + (p.price * p.stock), 0).toLocaleString()}
+                {showMoney
+                  ? `ETB ${products.reduce((sum, p) => sum + (p.price * p.stock), 0).toLocaleString()}`
+                  : products.reduce((sum, p) => sum + Number(p.stock || 0), 0)}
               </p>
             </div>
           </div>
@@ -235,8 +269,8 @@ const Inventory = () => {
 
       {/* Search and Add Bar */}
       <div className="bg-white rounded-lg shadow mb-6">
-        <div className="p-4 border-b flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="relative w-full md:w-96">
+        <div className="p-4 border-b flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-3">
+          <div className="relative w-full lg:w-96">
             <FiSearch className="absolute left-3 top-3 text-gray-400" size={18} />
             <input
               type="text"
@@ -246,14 +280,27 @@ const Inventory = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          
-          <button
-            onClick={() => window.location.href = '/management'}
-            className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 flex items-center w-full md:w-auto justify-center"
-          >
-            <FiPlus className="mr-2" />
-            Add New Product
-          </button>
+
+          <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+            <select
+              value={stockFilter}
+              onChange={(e) => setStockFilter(e.target.value)}
+              className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">All stock</option>
+              <option value="low">Low stock only</option>
+            </select>
+            {canCreate && (
+              <button
+                type="button"
+                onClick={() => navigate('/management')}
+                className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 flex items-center justify-center"
+              >
+                <FiPlus className="mr-2" />
+                Add New Product
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Products Table */}
@@ -264,7 +311,7 @@ const Inventory = () => {
         ) : (
           <>
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full min-w-[860px]">
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">No.</th>
@@ -272,7 +319,8 @@ const Inventory = () => {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Product Name</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
+                    {showMoney && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sell price</th>}
+                    {showMoney && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total purchase</th>}
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stock</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Restock Level</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Unit</th>
@@ -299,7 +347,12 @@ const Inventory = () => {
                       <td className="px-4 py-3 text-sm">{product.productId}</td>
                       <td className="px-4 py-3 text-sm">{product.category}</td>
                       <td className="px-4 py-3 text-sm font-medium">{product.name}</td>
-                      <td className="px-4 py-3 text-sm">ETB {product.price?.toLocaleString()}</td>
+                      {showMoney && <td className="px-4 py-3 text-sm">ETB {product.price?.toLocaleString()}</td>}
+                      {showMoney && (
+                        <td className="px-4 py-3 text-sm text-amber-800">
+                          ETB {Number(product.totalPurchase || (product.purchaseCost || 0) * (product.stock || 0)).toLocaleString()}
+                        </td>
+                      )}
                       <td className="px-4 py-3">
                         <span className={`px-2 py-1 text-xs rounded-full ${
                           product.stock <= product.restockLevel 
@@ -320,20 +373,24 @@ const Inventory = () => {
                           >
                             <FiEye size={18} />
                           </button>
-                          <button
-                            onClick={() => handleEdit(product)}
-                            className="text-green-600 hover:text-green-800 p-1"
-                            title="Edit Product"
-                          >
-                            <FiEdit size={18} />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteClick(product)}
-                            className="text-red-600 hover:text-red-800 p-1"
-                            title="Delete Product"
-                          >
-                            <FiTrash2 size={18} />
-                          </button>
+                          {canEdit && (
+                            <button
+                              onClick={() => handleEdit(product)}
+                              className="text-green-600 hover:text-green-800 p-1"
+                              title="Edit Product"
+                            >
+                              <FiEdit size={18} />
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button
+                              onClick={() => handleDeleteClick(product)}
+                              className="text-red-600 hover:text-red-800 p-1"
+                              title="Delete Product"
+                            >
+                              <FiTrash2 size={18} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -351,7 +408,7 @@ const Inventory = () => {
 
             {/* Pagination */}
             {filteredProducts.length > 0 && (
-              <div className="px-4 py-3 border-t flex items-center justify-between">
+              <div className="px-4 py-3 border-t flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
                 <p className="text-sm text-gray-500">
                   Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredProducts.length)} of {filteredProducts.length} products
                 </p>
@@ -373,9 +430,9 @@ const Inventory = () => {
                   </span>
                   <button
                     onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                    disabled={currentPage === totalPages}
+                    disabled={currentPage === totalPages || totalPages === 0}
                     className={`px-3 py-1 border rounded flex items-center ${
-                      currentPage === totalPages
+                      currentPage === totalPages || totalPages === 0
                         ? 'text-gray-300 cursor-not-allowed'
                         : 'text-gray-600 hover:bg-gray-50'
                     }`}
@@ -392,8 +449,8 @@ const Inventory = () => {
 
       {/* View Product Modal */}
       {showViewModal && selectedProduct && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-4 sm:p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">Product Details</h2>
               <button onClick={() => setShowViewModal(false)} className="text-gray-500 hover:text-gray-700">
@@ -420,7 +477,7 @@ const Inventory = () => {
 
               {/* Basic Information */}
               <h3 className="font-semibold text-lg border-b pb-2">Basic Information</h3>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-gray-500">Product Name</p>
                   <p className="font-medium">{selectedProduct.name}</p>
@@ -461,7 +518,7 @@ const Inventory = () => {
 
               {/* Additional Details */}
               <h3 className="font-semibold text-lg border-b pb-2 mt-4">Additional Details</h3>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-gray-500">Batch Number</p>
                   <p className="font-medium">{selectedProduct.batchNumber || 'Not specified'}</p>
@@ -484,22 +541,26 @@ const Inventory = () => {
                 </div>
               </div>
 
-              <div className="flex justify-end space-x-3 mt-6">
+              <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 mt-6">
                 <button
+                  type="button"
                   onClick={() => setShowViewModal(false)}
                   className="px-4 py-2 border rounded-lg hover:bg-gray-100"
                 >
                   Close
                 </button>
-                <button
-                  onClick={() => {
-                    setShowViewModal(false);
-                    handleEdit(selectedProduct);
-                  }}
-                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-                >
-                  Edit Product
-                </button>
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowViewModal(false);
+                      handleEdit(selectedProduct);
+                    }}
+                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                  >
+                    Edit Product
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -508,8 +569,8 @@ const Inventory = () => {
 
       {/* Edit Product Modal */}
       {showEditModal && selectedProduct && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-4 sm:p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">Edit Product</h2>
               <button onClick={() => setShowEditModal(false)} className="text-gray-500 hover:text-gray-700">
@@ -521,7 +582,7 @@ const Inventory = () => {
               {/* Image Upload Section */}
               <div className="mb-6">
                 <label className="block text-gray-700 mb-2 font-medium">Product Image</label>
-                <div className="flex items-center space-x-4">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                   {/* Image Preview */}
                   <div className="w-32 h-32 border-2 border-gray-300 rounded-lg overflow-hidden bg-gray-50 flex items-center justify-center">
                     {imagePreview ? (
@@ -565,7 +626,7 @@ const Inventory = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-gray-700 mb-2">Product Name *</label>
                   <input
@@ -651,7 +712,7 @@ const Inventory = () => {
 
               <h3 className="font-semibold text-lg border-b pb-2">Additional Product Details</h3>
               
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-gray-700 mb-2">Batch number</label>
                   <input
@@ -704,8 +765,9 @@ const Inventory = () => {
               </div>
             </div>
             
-            <div className="flex justify-end space-x-3 mt-6">
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 mt-6">
               <button
+                type="button"
                 onClick={() => {
                   setShowEditModal(false);
                   setUploadedImage(null);
@@ -716,11 +778,13 @@ const Inventory = () => {
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={handleUpdateProduct}
-                className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center"
+                disabled={saving}
+                className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center justify-center disabled:opacity-60"
               >
                 <FiSave className="mr-2" />
-                Update Product
+                {saving ? 'Updating...' : 'Update Product'}
               </button>
             </div>
           </div>
@@ -729,8 +793,8 @@ const Inventory = () => {
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && productToDelete && (
-        <div className="fixed inset-0  bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-96">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm">
             <div className="text-center mb-4">
               <FiTrash2 size={48} className="mx-auto text-red-500 mb-4" />
               <h2 className="text-xl font-semibold mb-2">Delete Product</h2>

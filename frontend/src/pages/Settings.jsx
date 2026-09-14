@@ -618,44 +618,18 @@ const Settings = () => {
 
               {/* Users Management */}
               {activeTab === 'users' && (
-                <div>
-                  <div className="mb-6">
-                    <Link
-                      to="/settings/add-user"
-                      className="inline-flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-                    >
-                      <FiUser className="mr-2" />
-                      Add New User
-                    </Link>
-                  </div>
-
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-4 py-2 text-left">Username</th>
-                          <th className="px-4 py-2 text-left">Role</th>
-                          <th className="px-4 py-2 text-left">Status</th>
-                          <th className="px-4 py-2 text-left">Last Login</th>
-                          <th className="px-4 py-2 text-left">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr>
-                          <td className="px-4 py-2">admin</td>
-                          <td className="px-4 py-2">Administrator</td>
-                          <td className="px-4 py-2">
-                            <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">Active</span>
-                          </td>
-                          <td className="px-4 py-2">2025-02-20</td>
-                          <td className="px-4 py-2">
-                            <button className="text-blue-500 hover:text-blue-700 mr-2">Edit</button>
-                            <button className="text-red-500 hover:text-red-700">Delete</button>
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6">
+                  <h3 className="text-lg font-semibold text-slate-900">Account roles</h3>
+                  <p className="text-sm text-slate-600 mt-2 mb-4">
+                    New signups start as User. Approve Staff or Management from the dedicated admin page.
+                  </p>
+                  <Link
+                    to="/users"
+                    className="inline-flex items-center px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800"
+                  >
+                    <FiUsers className="mr-2" />
+                    Open role manager
+                  </Link>
                 </div>
               )}
 

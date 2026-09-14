@@ -7,6 +7,8 @@ const AddProduct = () => {
     category: '',
     stock: '',
     price: '',
+    purchaseCost: '',
+    supplier: '',
     restockLevel: '',
     location: '',
     batchNumber: '',
@@ -25,7 +27,7 @@ const AddProduct = () => {
 
   const fetchCategories = async () => {
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
       const response = await axios.get(`${API_URL}/settings/categories`);
       setCategories(response.data);
     } catch (error) {
@@ -43,8 +45,14 @@ const AddProduct = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-      await axios.post(`${API_URL}/products`, formData);
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+      const stock = Number(formData.stock || 0);
+      const purchaseCost = Number(formData.purchaseCost || 0);
+      await axios.post(`${API_URL}/products`, {
+        ...formData,
+        purchaseCost,
+        totalPurchase: purchaseCost * stock
+      });
       alert('Product created successfully');
       // Reset form
       setFormData({
@@ -52,6 +60,8 @@ const AddProduct = () => {
         category: '',
         stock: '',
         price: '',
+        purchaseCost: '',
+        supplier: '',
         restockLevel: '',
         location: '',
         batchNumber: '',
@@ -115,7 +125,7 @@ const AddProduct = () => {
           </div>
           
           <div>
-            <label className="block text-gray-700 mb-2">Price *</label>
+            <label className="block text-gray-700 mb-2">Selling price (ETB) *</label>
             <input
               type="number"
               name="price"
@@ -123,6 +133,43 @@ const AddProduct = () => {
               onChange={handleChange}
               className="w-full px-3 py-2 border rounded-lg"
               required
+            />
+            <p className="text-xs text-gray-400 mt-1">What the customer pays</p>
+          </div>
+
+          <div>
+            <label className="block text-gray-700 mb-2">Purchase cost per unit (ETB) *</label>
+            <input
+              type="number"
+              name="purchaseCost"
+              value={formData.purchaseCost}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border rounded-lg"
+              required
+            />
+            <p className="text-xs text-gray-400 mt-1">What you paid the supplier</p>
+          </div>
+
+          <div>
+            <label className="block text-gray-700 mb-2">Total purchase (ETB)</label>
+            <input
+              type="number"
+              readOnly
+              value={Number(formData.purchaseCost || 0) * Number(formData.stock || 0)}
+              className="w-full px-3 py-2 border rounded-lg bg-amber-50 text-amber-800 font-medium"
+            />
+            <p className="text-xs text-gray-400 mt-1">Purchase cost × stock bought</p>
+          </div>
+
+          <div>
+            <label className="block text-gray-700 mb-2">Supplier</label>
+            <input
+              type="text"
+              name="supplier"
+              value={formData.supplier}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border rounded-lg"
+              placeholder="Who you bought from"
             />
           </div>
           
@@ -158,7 +205,7 @@ const AddProduct = () => {
           </div>
           
           {/* Additional Product Details */}
-          <div className="col-span-2">
+          <div className="col-span-1 md:col-span-2">
             <h3 className="text-lg font-semibold mb-4">Additional Product Details</h3>
           </div>
           

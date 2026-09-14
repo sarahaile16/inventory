@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
+import { homePath } from '../auth/roles';
 
 // Configure axios to send cookies with every request
 axios.defaults.withCredentials = true;
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 axios.defaults.baseURL = API_URL;
 
 const Login = () => {
@@ -32,13 +33,13 @@ const Login = () => {
         localStorage.setItem('user', JSON.stringify(response.data.user));
       }
 
-      window.location.href = '/dashboard';
+      window.location.href = homePath(response.data.user?.role);
 
     } catch (err) {
       console.error('❌ Login error:', err);
 
       if (err.code === 'ERR_NETWORK') {
-        setError('Cannot connect to server. Make sure backend is running on port 5000');
+        setError('Cannot connect to server. Make sure the inventory backend is running on port 5001');
       } else if (err.response) {
         setError(err.response.data?.message || 'Invalid credentials');
       } else {
@@ -115,12 +116,12 @@ const Login = () => {
         </div>
 
         <div className="mt-6 pt-4 border-t">
-          <p className="text-xs text-gray-400 text-center">
-            Demo credentials: sari / sari123
-          </p>
-          <p className="text-xs text-gray-400 text-center mt-1">
-            Or register a new account
-          </p>
+          <div className="text-xs text-gray-400 text-center space-y-1">
+            <p>Admin: sari / sari123</p>
+            <p>Management: manager / manager123</p>
+            <p>Staff: staff / staff123</p>
+            <p>Pending user: user / user123</p>
+          </div>
         </div>
       </div>
     </div>

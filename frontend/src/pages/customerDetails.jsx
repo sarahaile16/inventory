@@ -9,6 +9,7 @@ import {
   FiSave, FiPlus, FiMapPin, FiBriefcase, FiTag,
   FiUser, FiFileText, FiTrash2, FiX
 } from 'react-icons/fi';
+import { canSeeMoney } from '../auth/roles';
 
 const CustomerDetails = () => {
   const { id } = useParams();
@@ -22,6 +23,7 @@ const CustomerDetails = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [uploadType, setUploadType] = useState('payment');
   const [uploading, setUploading] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [editFormData, setEditFormData] = useState({});
@@ -34,6 +36,7 @@ const CustomerDetails = () => {
   });
   
   const itemsPerPage = 5;
+  const showMoney = canSeeMoney();
 
   useEffect(() => {
     fetchCustomerDetails();
@@ -44,18 +47,13 @@ const CustomerDetails = () => {
       setLoading(true);
       console.log('🔍 Fetching customer ID:', id);
       
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
       const response = await axios.get(`${API_URL}/customers/${id}`);
       console.log('✅ Customer data:', response.data);
       
       setCustomer(response.data);
       setEditFormData(response.data);
-      
-      // Mock uploaded files - in real app, fetch from API
-      setUploadedFiles([
-        { id: 1, name: 'order_invoice.pdf', date: '2025-02-20', size: '245 KB' },
-        { id: 2, name: 'payment_receipt.jpg', date: '2025-02-15', size: '1.2 MB' }
-      ]);
+      setUploadedFiles(Array.isArray(response.data.documents) ? response.data.documents : []);
     } catch (error) {
       console.error('❌ Error fetching customer:', error);
     } finally {
@@ -118,31 +116,63 @@ const CustomerDetails = () => {
       return;
     }
 
+    if (selectedFile.size > 2 * 1024 * 1024) {
+      alert('Please choose a file smaller than 2MB');
+      return;
+    }
+
     setUploading(true);
     try {
-      const newFile = {
-        id: Date.now(),
+      const reader = new FileReader();
+      const dataUrl = await new Promise((resolve, reject) => {
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = reject;
+        reader.readAsDataURL(selectedFile);
+      });
+
+      const isImage = selectedFile.type.startsWith('image/');
+      const type = uploadType || (isImage ? 'order' : 'other');
+
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+      const response = await axios.post(`${API_URL}/customers/${id}/documents`, {
         name: selectedFile.name,
-        date: new Date().toISOString().split('T')[0],
-        size: (selectedFile.size / 1024).toFixed(2) + ' KB'
-      };
-      
-      setUploadedFiles([...uploadedFiles, newFile]);
-      
+        type,
+        size: `${(selectedFile.size / 1024).toFixed(2)} KB`,
+        url: dataUrl
+      });
+
+      setUploadedFiles(response.data.documents || []);
+      if (type === 'payment') {
+        setCustomer((current) => current ? { ...current, paymentPhoto: dataUrl, documents: response.data.documents } : current);
+      } else if (type === 'order') {
+        setCustomer((current) => current ? { ...current, orderPhoto: dataUrl, documents: response.data.documents } : current);
+      } else {
+        setCustomer((current) => current ? { ...current, documents: response.data.documents } : current);
+      }
+
       alert('File uploaded successfully!');
       setShowUploadModal(false);
       setSelectedFile(null);
+      setUploadType('payment');
     } catch (error) {
       console.error('Error uploading file:', error);
-      alert('Failed to upload file');
+      alert(error.response?.data?.message || 'Failed to upload file');
     } finally {
       setUploading(false);
     }
   };
 
-  const handleDeleteFile = (fileId) => {
-    if (window.confirm('Are you sure you want to delete this file?')) {
-      setUploadedFiles(uploadedFiles.filter(f => f.id !== fileId));
+  const handleDeleteFile = async (fileId) => {
+    if (!window.confirm('Are you sure you want to delete this file?')) return;
+
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+      const response = await axios.delete(`${API_URL}/customers/${id}/documents/${fileId}`);
+      setUploadedFiles(response.data.documents || []);
+      setCustomer((current) => current ? { ...current, documents: response.data.documents || [] } : current);
+    } catch (error) {
+      console.error('Error deleting file:', error);
+      alert('Failed to delete file');
     }
   };
 
@@ -165,7 +195,7 @@ const CustomerDetails = () => {
   const handleDeleteCustomer = async () => {
     try {
       // In real app, call API to delete
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
       // await axios.delete(`${API_URL}/customers/${id}`);
       
       alert('Customer deleted successfully!');
@@ -284,12 +314,14 @@ const CustomerDetails = () => {
           >
             <FiTrash2 className="mr-2" /> Delete
           </button>
-          <button
-            onClick={() => setShowAddPaymentModal(true)}
-            className="flex items-center px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
-          >
-            <FiPlus className="mr-2" /> Add Payment
-          </button>
+          {showMoney && (
+            <button
+              onClick={() => setShowAddPaymentModal(true)}
+              className="flex items-center px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
+            >
+              <FiPlus className="mr-2" /> Add Payment
+            </button>
+          )}
           <button
             onClick={() => setShowUploadModal(true)}
             className="flex items-center px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600"
@@ -309,6 +341,23 @@ const CustomerDetails = () => {
           {customer.orderStatus && getStatusBadge(customer.orderStatus)}
         </div>
         
+        {(customer.orderPhoto || customer.paymentPhoto) && (
+          <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {customer.orderPhoto && (
+              <div>
+                <p className="text-gray-500 text-xs mb-2">Order photo</p>
+                <img src={customer.orderPhoto} alt="Order" className="h-40 w-full rounded-xl border object-cover" />
+              </div>
+            )}
+            {customer.paymentPhoto && (
+              <div>
+                <p className="text-gray-500 text-xs mb-2">Payment proof</p>
+                <img src={customer.paymentPhoto} alt="Payment proof" className="h-40 w-full rounded-xl border object-cover" />
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <div className="bg-gray-50 p-3 rounded-lg">
             <p className="text-gray-500 text-xs flex items-center"><FiUser className="mr-1" size={12} /> Full Name</p>
@@ -352,12 +401,25 @@ const CustomerDetails = () => {
           </div>
         </div>
 
-        {/* Payment Summary */}
         <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-green-50 p-4 rounded-lg">
-            <p className="text-green-600 text-sm font-medium">Total Spent</p>
-            <p className="text-2xl font-bold text-green-700">ETB {formatCurrency(customer.totalSpent)}</p>
-          </div>
+          {showMoney ? (
+            <div className="bg-green-50 p-4 rounded-lg">
+              <p className="text-green-600 text-sm font-medium">Whole / first / rest</p>
+              <p className="text-lg font-bold text-green-700">ETB {formatCurrency(customer.wholePayment || customer.totalSpent)}</p>
+              <p className="text-xs text-teal-700 mt-1">First ETB {formatCurrency(customer.firstPayment)}</p>
+              <p className="text-xs text-amber-700">
+                {customer.restPaid ? 'Rest paid' : `Rest ETB ${formatCurrency(customer.restPayment)}`}
+              </p>
+            </div>
+          ) : (
+            <div className="bg-amber-50 p-4 rounded-lg">
+              <p className="text-amber-700 text-sm font-medium">Order deadline</p>
+              <p className="text-2xl font-bold text-amber-800">
+                {customer.orderDeadline ? formatDate(customer.orderDeadline) : 'Not set'}
+              </p>
+              <p className="text-xs mt-1">{customer.restPaid ? 'Paid in full' : 'Rest due on delivery'}</p>
+            </div>
+          )}
           <div className="bg-blue-50 p-4 rounded-lg">
             <p className="text-blue-600 text-sm font-medium">Total Purchases</p>
             <p className="text-2xl font-bold text-blue-700">{customer.totalPurchases || 0}</p>
@@ -369,7 +431,7 @@ const CustomerDetails = () => {
         </div>
 
         {/* Order Information with Deadline */}
-        {(customer.orderDescription || customer.orderDeadline) && (
+        {(customer.orderDescription || customer.orderDeadline || !showMoney) && (
           <div className="mt-6 border-t pt-4">
             <h3 className="text-lg font-semibold mb-3 flex items-center">
               <FiPackage className="mr-2 text-orange-500" />
@@ -512,7 +574,11 @@ const CustomerDetails = () => {
                         <p className="font-medium">{purchase.description || purchase.type || 'Payment'}</p>
                         <p className="text-sm text-gray-500">{purchase.date}</p>
                       </div>
-                      <p className="font-bold text-green-600">ETB {formatCurrency(purchase.amount)}</p>
+                      {showMoney ? (
+                        <p className="font-bold text-green-600">ETB {formatCurrency(purchase.amount)}</p>
+                      ) : (
+                        <p className="text-sm text-teal-700">{purchase.quantity || 0} items</p>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -532,7 +598,7 @@ const CustomerDetails = () => {
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">#</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                      {showMoney && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>}
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Method</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Transaction ID</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
@@ -544,9 +610,11 @@ const CustomerDetails = () => {
                         <td className="px-4 py-3">{indexOfFirstItem + index + 1}</td>
                         <td className="px-4 py-3">{purchase.date}</td>
                         <td className="px-4 py-3">{purchase.description || purchase.type || 'Payment'}</td>
-                        <td className="px-4 py-3 font-medium text-green-600">
-                          ETB {formatCurrency(purchase.amount)}
-                        </td>
+                        {showMoney && (
+                          <td className="px-4 py-3 font-medium text-green-600">
+                            ETB {formatCurrency(purchase.amount)}
+                          </td>
+                        )}
                         <td className="px-4 py-3">{purchase.method || 'N/A'}</td>
                         <td className="px-4 py-3">{purchase.transactionId || '—'}</td>
                         <td className="px-4 py-3">
@@ -637,21 +705,37 @@ const CustomerDetails = () => {
               {uploadedFiles.length > 0 ? (
                 <div className="space-y-2">
                   {uploadedFiles.map((file) => (
-                    <div key={file.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
-                      <div className="flex items-center">
-                        <FiFileText className="text-blue-500 mr-3" size={20} />
-                        <div>
-                          <p className="font-medium">{file.name}</p>
-                          <p className="text-xs text-gray-500">Uploaded: {file.date} • Size: {file.size}</p>
+                    <div key={file.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 gap-3">
+                      <div className="flex items-center min-w-0">
+                        {file.url && String(file.url).startsWith('data:image') ? (
+                          <img src={file.url} alt={file.name} className="w-12 h-12 rounded object-cover border mr-3 shrink-0" />
+                        ) : (
+                          <FiFileText className="text-blue-500 mr-3 shrink-0" size={20} />
+                        )}
+                        <div className="min-w-0">
+                          <p className="font-medium truncate">{file.name}</p>
+                          <p className="text-xs text-gray-500">
+                            {file.type ? `${file.type} · ` : ''}Uploaded: {file.date} • Size: {file.size}
+                          </p>
                         </div>
                       </div>
-                      <div className="flex space-x-2">
-                        <button className="text-blue-500 hover:text-blue-700">
-                          <FiDownload size={18} />
-                        </button>
+                      <div className="flex space-x-2 shrink-0">
+                        {file.url && (
+                          <a
+                            href={file.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-blue-500 hover:text-blue-700"
+                            title="Open"
+                          >
+                            <FiDownload size={18} />
+                          </a>
+                        )}
                         <button
+                          type="button"
                           onClick={() => handleDeleteFile(file.id)}
                           className="text-red-500 hover:text-red-700"
+                          title="Delete"
                         >
                           <FiTrash2 size={18} />
                         </button>
@@ -664,6 +748,7 @@ const CustomerDetails = () => {
                   <FiUpload className="mx-auto mb-2" size={32} />
                   <p>No files uploaded yet</p>
                   <button
+                    type="button"
                     onClick={() => setShowUploadModal(true)}
                     className="mt-2 text-blue-500 hover:text-blue-700"
                   >
@@ -946,7 +1031,19 @@ const CustomerDetails = () => {
                 <FiX size={24} />
               </button>
             </div>
-            <div className="p-6">
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Document type</label>
+                <select
+                  value={uploadType}
+                  onChange={(e) => setUploadType(e.target.value)}
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="payment">Payment proof</option>
+                  <option value="order">Order photo</option>
+                  <option value="other">Other document</option>
+                </select>
+              </div>
               <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
                 {selectedFile ? (
                   <div>
@@ -955,6 +1052,7 @@ const CustomerDetails = () => {
                       {(selectedFile.size / 1024).toFixed(2)} KB
                     </p>
                     <button
+                      type="button"
                       onClick={() => setSelectedFile(null)}
                       className="mt-2 text-red-500 hover:text-red-700 text-sm"
                     >
@@ -964,10 +1062,11 @@ const CustomerDetails = () => {
                 ) : (
                   <>
                     <FiUpload className="mx-auto text-gray-400 mb-2" size={32} />
-                    <p className="text-gray-600 mb-2">Drag and drop a file here, or click to select</p>
+                    <p className="text-gray-600 mb-2">Choose a payment receipt, order photo, or document</p>
                     <input
                       type="file"
                       id="file-upload"
+                      accept="image/*,.pdf"
                       className="hidden"
                       onChange={(e) => setSelectedFile(e.target.files[0])}
                     />

@@ -285,6 +285,37 @@ let customers = [
   }
 ];
 
+const pad = (n) => String(n).padStart(2, '0');
+const localDate = (offsetDays) => {
+  const date = new Date();
+  date.setDate(date.getDate() + offsetDays);
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+};
+
+const customerOrderMeta = {
+  1: { orderDeadline: localDate(3), orderStatus: 'processing', orderDescription: 'Dinnerware set delivery' },
+  2: { orderDeadline: localDate(1), orderStatus: 'pending', orderDescription: 'Bulk pouch restock' },
+  3: { orderDeadline: localDate(-2), orderStatus: 'processing', orderDescription: 'Main plate batch' },
+  5: { orderDeadline: localDate(5), orderStatus: 'pending', orderDescription: 'GODMIDDAG follow-up' },
+  7: { orderDeadline: localDate(0), orderStatus: 'processing', orderDescription: 'Corporate plate order' },
+  8: { orderDeadline: localDate(-1), orderStatus: 'pending', orderDescription: 'VARDAGEN pickup' },
+  9: { orderDeadline: localDate(7), orderStatus: 'completed', orderDescription: 'VIP dinnerware pack' }
+};
+
+customers.forEach((customer) => {
+  const extra = customerOrderMeta[customer._id];
+  if (extra) {
+    customer.orderDeadline = extra.orderDeadline;
+    customer.orderStatus = extra.orderStatus;
+    customer.orderDescription = extra.orderDescription;
+  }
+  if (!Array.isArray(customer.documents)) {
+    customer.documents = [];
+  }
+  if (customer.paymentPhoto === undefined) customer.paymentPhoto = '';
+  if (customer.orderPhoto === undefined) customer.orderPhoto = '';
+});
+
 // Helper function to calculate customer stats
 const calculateCustomerStats = (customer) => {
   const totalPurchases = customer.purchaseHistory.length;
@@ -344,7 +375,17 @@ const getAllCustomers = (req, res) => {
     phoneNumber: customer.phoneNumber,
     status: customer.status,
     totalPurchases: customer.totalPurchases,
-    totalSpent: customer.totalSpent
+    totalSpent: customer.totalSpent,
+    orderDeadline: customer.orderDeadline || null,
+    orderDescription: customer.orderDescription || '',
+    orderStatus: customer.orderStatus || '',
+    orderPhoto: customer.orderPhoto || '',
+    wholePayment: customer.wholePayment || 0,
+    firstPayment: customer.firstPayment || 0,
+    restPayment: customer.restPayment || 0,
+    restPaid: Boolean(customer.restPaid),
+    paymentMethod: customer.paymentMethod || '',
+    paymentType: customer.paymentType || 'first_and_rest'
   }));
 
   res.json(formattedCustomers);
@@ -373,6 +414,18 @@ const getCustomerById = (req, res) => {
       lastPurchaseDate: customer.lastPurchaseDate,
       createdAt: customer.createdAt,
       notes: customer.notes,
+      orderDeadline: customer.orderDeadline || null,
+      orderDescription: customer.orderDescription || '',
+      orderStatus: customer.orderStatus || '',
+      orderPhoto: customer.orderPhoto || '',
+      paymentPhoto: customer.paymentPhoto || '',
+      documents: Array.isArray(customer.documents) ? customer.documents : [],
+      wholePayment: customer.wholePayment || 0,
+      firstPayment: customer.firstPayment || 0,
+      restPayment: customer.restPayment || 0,
+      restPaid: Boolean(customer.restPaid),
+      paymentMethod: customer.paymentMethod || '',
+      paymentType: customer.paymentType || 'first_and_rest',
       purchaseHistory: customer.purchaseHistory.map(purchase => ({
         _id: purchase._id,
         transactionId: purchase.transactionId,
@@ -406,10 +459,29 @@ const getCustomerByPhone = (req, res) => {
 // @desc    Create new customer
 // @route   POST /api/customers
 // @access  Private
-const createCustomer = (req, res) => {
+const createCustomer = async (req, res) => {
   console.log('👤 Creating new customer:', req.body);
 
-  const { fullName, phoneNumber, organization, email, address, customerType, notes } = req.body;
+  const {
+    fullName,
+    phoneNumber,
+    organization,
+    email,
+    address,
+    customerType,
+    notes,
+    orderDescription,
+    orderDeadline,
+    deadline,
+    orderStatus,
+    orderPhoto,
+    paymentPhoto,
+    wholePayment,
+    firstPayment,
+    restPayment,
+    paymentMethod,
+    paymentDate
+  } = req.body;
 
   // Validate required fields
   if (!fullName) {
@@ -427,6 +499,32 @@ const createCustomer = (req, res) => {
   }
 
   const nextId = customers.length > 0 ? Math.max(...customers.map(c => c._id)) + 1 : 1;
+  const whole = Number(wholePayment || 0);
+  const first = Number(firstPayment || 0);
+  const rest = Math.max(0, Number(restPayment || whole - first));
+  const today = new Date().toISOString().split('T')[0];
+  const documents = [];
+
+  if (orderPhoto) {
+    documents.push({
+      id: `order-${Date.now()}`,
+      name: 'order_photo.jpg',
+      type: 'order',
+      date: today,
+      size: 'attached',
+      url: orderPhoto
+    });
+  }
+  if (paymentPhoto) {
+    documents.push({
+      id: `payment-${Date.now() + 1}`,
+      name: 'payment_proof.jpg',
+      type: 'payment',
+      date: today,
+      size: 'attached',
+      url: paymentPhoto
+    });
+  }
 
   const newCustomer = {
     _id: nextId,
@@ -437,19 +535,77 @@ const createCustomer = (req, res) => {
     address: address || '',
     customerType: customerType || 'Regular',
     status: 'Active',
-    totalPurchases: 0,
-    totalSpent: 0,
-    lastPurchaseDate: null,
-    createdAt: new Date().toISOString().split('T')[0],
+    totalPurchases: whole > 0 ? 1 : 0,
+    totalSpent: first,
+    lastPurchaseDate: paymentDate || null,
+    createdAt: today,
     notes: notes || '',
-    purchaseHistory: []
+    orderDescription: orderDescription || '',
+    orderDeadline: orderDeadline || deadline || null,
+    orderStatus: orderStatus || 'pending',
+    orderPhoto: orderPhoto || '',
+    paymentPhoto: paymentPhoto || '',
+    documents,
+    wholePayment: whole,
+    firstPayment: first,
+    restPayment: rest,
+    restPaid: rest === 0,
+    paymentMethod: paymentMethod || '',
+    paymentType: 'first_and_rest',
+    purchaseHistory: whole > 0 ? [{
+      _id: 'purchase_' + Date.now(),
+      transactionId: 'FS-' + Date.now().toString().slice(-12),
+      type: 'Order',
+      quantity: 1,
+      amount: first,
+      firstPayment: first,
+      restPayment: rest,
+      date: paymentDate || today,
+      method: paymentMethod || 'Bank Transfer',
+      description: orderDescription || 'First payment',
+      paymentPhoto: paymentPhoto || ''
+    }] : []
   };
 
   customers.push(newCustomer);
 
+  try {
+    const { sales } = require('../data/store');
+    if (orderDescription || whole > 0) {
+      sales.push({
+        _id: sales.length > 0 ? Math.max(...sales.map((s) => Number(s._id) || 0)) + 1 : 1,
+        transactionId: newCustomer.purchaseHistory[0]?.transactionId || ('FS-' + Date.now().toString().slice(-12)),
+        customerName: fullName,
+        paymentMethod: paymentMethod || '',
+        items: [{ name: orderDescription || 'Customer order', qty: 1, price: whole, amount: whole }],
+        totalAmount: whole,
+        firstPayment: first,
+        restPayment: rest,
+        restPaid: rest === 0,
+        paymentStatus: rest === 0 ? 'fully_paid' : 'first_paid',
+        deadline: orderDeadline || deadline || '',
+        status: orderStatus || 'pending',
+        date: new Date().toISOString().slice(0, 10),
+        orderPhoto: orderPhoto || ''
+      });
+    }
+  } catch (error) {
+    console.warn('Could not attach customer order to sales:', error.message);
+  }
+
+  let emailConfirmation = { sent: false, skipped: true, reason: 'No email provided' };
+  try {
+    const { sendOrderConfirmation } = require('../utils/emailService');
+    emailConfirmation = await sendOrderConfirmation(newCustomer);
+  } catch (error) {
+    console.warn('Order confirmation email failed:', error.message);
+    emailConfirmation = { sent: false, skipped: false, error: error.message };
+  }
+
   res.status(201).json({
     message: 'Customer created successfully',
-    customer: newCustomer
+    customer: newCustomer,
+    emailConfirmation
   });
 };
 
@@ -474,15 +630,81 @@ const updateCustomer = (req, res) => {
     }
   }
 
+  const current = customers[index];
   customers[index] = {
-    ...customers[index],
+    ...current,
     ...req.body,
-    _id: id
+    _id: id,
+    documents: Array.isArray(req.body.documents) ? req.body.documents : (current.documents || [])
   };
 
   res.json({
     message: 'Customer updated successfully',
     customer: customers[index]
+  });
+};
+
+// @desc    Add document to customer
+// @route   POST /api/customers/:id/documents
+// @access  Private
+const addCustomerDocument = (req, res) => {
+  const id = parseInt(req.params.id);
+  const index = customers.findIndex((c) => c._id === id);
+
+  if (index === -1) {
+    return res.status(404).json({ message: 'Customer not found' });
+  }
+
+  const { name, type, size, url } = req.body;
+  if (!name || !url) {
+    return res.status(400).json({ message: 'Document name and file are required' });
+  }
+
+  const document = {
+    id: `doc-${Date.now()}`,
+    name,
+    type: type || 'other',
+    date: new Date().toISOString().split('T')[0],
+    size: size || 'attached',
+    url
+  };
+
+  if (!Array.isArray(customers[index].documents)) {
+    customers[index].documents = [];
+  }
+  customers[index].documents.unshift(document);
+
+  if (type === 'payment') {
+    customers[index].paymentPhoto = url;
+  }
+  if (type === 'order') {
+    customers[index].orderPhoto = url;
+  }
+
+  res.status(201).json({
+    message: 'Document uploaded successfully',
+    document,
+    documents: customers[index].documents
+  });
+};
+
+// @desc    Delete customer document
+// @route   DELETE /api/customers/:id/documents/:docId
+// @access  Private
+const deleteCustomerDocument = (req, res) => {
+  const id = parseInt(req.params.id);
+  const index = customers.findIndex((c) => c._id === id);
+
+  if (index === -1) {
+    return res.status(404).json({ message: 'Customer not found' });
+  }
+
+  const docs = Array.isArray(customers[index].documents) ? customers[index].documents : [];
+  customers[index].documents = docs.filter((doc) => String(doc.id) !== String(req.params.docId));
+
+  res.json({
+    message: 'Document deleted',
+    documents: customers[index].documents
   });
 };
 
@@ -763,6 +985,8 @@ module.exports = {
   createCustomer,
   updateCustomer,
   deleteCustomer,
+  addCustomerDocument,
+  deleteCustomerDocument,
   
   // Purchase History
   getCustomerPurchases,

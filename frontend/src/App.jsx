@@ -17,10 +17,15 @@ import Settings from './pages/Settings';
 import SignUp from './pages/signup';
 import Sales from './pages/Sales';
 import PaymentInfo from './pages/PaymentInfo';
+import Orders from './pages/Orders';
+import Users from './pages/Users';
+import PendingAccess from './pages/PendingAccess';
 
 // Import Components
 import PrivateRoute from './components/PrivateRoute';
 import Layout from './components/Layout';
+import HomeRedirect from './components/HomeRedirect';
+import { getStoredUser, homePath } from './auth/roles';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -53,7 +58,7 @@ function App() {
           path="/login" 
           element={
             isAuthenticated ? 
-            <Navigate to="/dashboard" replace /> : 
+            <Navigate to={homePath(getStoredUser()?.role)} replace /> : 
             <Login setIsAuthenticated={setIsAuthenticated} />
             
           }
@@ -65,26 +70,30 @@ function App() {
         {/* Protected Routes with Layout */}
         <Route element={<PrivateRoute isAuthenticated={isAuthenticated} />}>
           <Route element={<Layout />}>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/" element={<HomeRedirect />} />
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/users" element={<Users />} />
             <Route path="/store" element={<StoreManagement />} />
             <Route path="/store/sales" element={<Sales />} />
             <Route path="/store/payment" element={<PaymentInfo />} />
+            <Route path="/orders" element={<Orders />} />
             <Route path="/management" element={<AddProduct />} />
             <Route path="/inventory" element={<Inventory />} />
             <Route path="/customers" element={<Customers />} />
             <Route path="/customers/:id" element={<CustomerDetails />} /> 
             <Route path="/analytics" element={<Analytics />} />
+            <Route path="/report" element={<Analytics />} />
             <Route path="/stock-movement" element={<StockMovement />} />
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/pending" element={<PendingAccess />} />
            
             
           </Route>
         </Route>
 
         {/* 404 Route */}
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<HomeRedirect />} />
       </Routes>
     </Router>
   );

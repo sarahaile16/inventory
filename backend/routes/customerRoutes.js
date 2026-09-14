@@ -8,6 +8,8 @@ const {
   createCustomer,
   updateCustomer,
   deleteCustomer,
+  addCustomerDocument,
+  deleteCustomerDocument,
   
   // Purchase History
   getCustomerPurchases,
@@ -42,6 +44,10 @@ router.get('/phone/:phone', getCustomerByPhone);
 // ========== CUSTOMER PURCHASES ==========
 router.get('/:id/purchases', getCustomerPurchases);
 router.post('/:id/purchases', addCustomerPurchase);
+
+// ========== CUSTOMER DOCUMENTS ==========
+router.post('/:id/documents', addCustomerDocument);
+router.delete('/:id/documents/:docId', deleteCustomerDocument);
 
 // ========== MAIN CRUD ROUTES ==========
 router.get('/', getAllCustomers);

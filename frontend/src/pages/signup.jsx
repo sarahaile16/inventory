@@ -23,7 +23,7 @@ const SignUp = () => {
     phone: '',
     password: '',
     confirmPassword: '',
-    role: 'staff',
+    requestedRole: 'staff',
     companyName: '',
     agreeTerms: false
   });
@@ -98,19 +98,19 @@ const SignUp = () => {
     setSuccess('');
     
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
       const response = await axios.post(`${API_URL}/auth/register`, {
         fullName: formData.fullName,
         username: formData.username,
         email: formData.email,
         phone: formData.phone,
         password: formData.password,
-        role: formData.role,
+        requestedRole: formData.requestedRole,
         companyName: formData.companyName
       });
       
       console.log('✅ Registration successful:', response.data);
-      setSuccess('Account created successfully! Redirecting to login...');
+      setSuccess('Account created as User. An admin will approve the role you selected.');
       
       // Reset form
       setFormData({
@@ -120,7 +120,7 @@ const SignUp = () => {
         phone: '',
         password: '',
         confirmPassword: '',
-        role: 'staff',
+        requestedRole: 'staff',
         companyName: '',
         agreeTerms: false
       });
@@ -340,22 +340,33 @@ const SignUp = () => {
                   )}
                 </div>
 
-                {/* Role Selection */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Role
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Requested role
                   </label>
-                  <select
-                    name="role"
-                    value={formData.role}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="staff">Staff Member</option>
-                    <option value="manager">Manager</option>
-                    <option value="admin">Admin</option>
-                  </select>
-                  <p className="text-xs text-gray-400 mt-1">You can request role change later</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {[
+                      { value: 'staff', title: 'Staff', text: 'Orders, store floor, and customers' },
+                      { value: 'management', title: 'Management', text: 'Inventory, add product, reports' }
+                    ].map((option) => (
+                      <button
+                        type="button"
+                        key={option.value}
+                        onClick={() => setFormData({ ...formData, requestedRole: option.value })}
+                        className={`text-left p-4 rounded-xl border-2 transition ${
+                          formData.requestedRole === option.value
+                            ? 'border-blue-600 bg-blue-50'
+                            : 'border-gray-200 hover:border-blue-200'
+                        }`}
+                      >
+                        <p className="font-semibold text-gray-900">{option.title}</p>
+                        <p className="text-xs text-gray-500 mt-1">{option.text}</p>
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Your account starts as User. An admin assigns Staff or Management after review.
+                  </p>
                 </div>
 
                 {/* Terms Agreement */}
@@ -455,4 +466,4 @@ const SignUp = () => {
   );
 };
 
-export default signup;
+export default SignUp;

@@ -1,32 +1,25 @@
 const express = require('express');
 const router = express.Router();
+const { sales } = require('../data/store');
 
-// In-memory storage
-let sales = [
-  {
-    _id: 1,
-    transactionId: 'FS-1003484885885',
-    customerName: 'Dagmawi Tsegaye',
-    totalAmount: 180090,
-    paymentMethod: 'Bank Transfer',
-    date: '2025-10-25'
-  }
-];
+const splitPayment = (totalAmount, firstPayment) => {
+  const total = Number(totalAmount || 0);
+  const first = Math.max(0, Number(firstPayment || 0));
+  const rest = Math.max(0, total - first);
+  return { total, first, rest };
+};
 
-// Get all sales
 router.get('/', (req, res) => {
   res.json(sales);
 });
 
-// Get total sales
 router.get('/total', (req, res) => {
-  const total = sales.reduce((sum, sale) => sum + sale.totalAmount, 0);
+  const total = sales.reduce((sum, sale) => sum + Number(sale.totalAmount || 0), 0);
   res.json({ total });
 });
 
-// Get single sale
 router.get('/:id', (req, res) => {
-  const sale = sales.find(s => s._id === parseInt(req.params.id));
+  const sale = sales.find((s) => String(s._id) === String(req.params.id));
   if (sale) {
     res.json(sale);
   } else {
@@ -34,16 +27,60 @@ router.get('/:id', (req, res) => {
   }
 });
 
-// Create sale
 router.post('/', (req, res) => {
+  const { total, first, rest } = splitPayment(
+    req.body.totalAmount || req.body.total || req.body.priceInETB,
+    req.body.firstPayment
+  );
+
   const newSale = {
-    _id: sales.length + 1,
-    transactionId: 'FS-' + Date.now().toString().slice(-12),
-    ...req.body,
-    date: new Date().toISOString()
+    _id: sales.length > 0 ? Math.max(...sales.map((s) => Number(s._id) || 0)) + 1 : 1,
+    transactionId: req.body.transactionId || ('FS-' + Date.now().toString().slice(-12)),
+    customerName: req.body.customerName || req.body.buyerInfo?.fullName || '',
+    paymentMethod: req.body.paymentMethod || '',
+    items: req.body.items || req.body.cart || [],
+    totalAmount: total,
+    firstPayment: first,
+    restPayment: Number(req.body.restPayment || rest),
+    restPaid: Number(req.body.restPayment || rest) === 0,
+    paymentStatus: Number(req.body.restPayment || rest) === 0 ? 'fully_paid' : 'first_paid',
+    deadline: req.body.deadline || '',
+    status: req.body.status || 'pending',
+    date: new Date().toISOString().slice(0, 10)
   };
   sales.push(newSale);
   res.status(201).json(newSale);
+});
+
+router.put('/:id', (req, res) => {
+  const sale = sales.find((s) => String(s._id) === String(req.params.id));
+  if (!sale) {
+    return res.status(404).json({ message: 'Sale not found' });
+  }
+
+  if (req.body.collectRest) {
+    sale.restPaid = true;
+    sale.restPayment = 0;
+    sale.paymentStatus = 'fully_paid';
+    if (sale.status !== 'completed') sale.status = 'delivered';
+    return res.json(sale);
+  }
+
+  if (req.body.firstPayment != null || req.body.totalAmount != null) {
+    const { total, first, rest } = splitPayment(
+      req.body.totalAmount ?? sale.totalAmount,
+      req.body.firstPayment ?? sale.firstPayment
+    );
+    sale.totalAmount = total;
+    sale.firstPayment = first;
+    sale.restPayment = rest;
+    sale.restPaid = rest === 0;
+    sale.paymentStatus = rest === 0 ? 'fully_paid' : 'first_paid';
+  }
+
+  if (req.body.deadline) sale.deadline = req.body.deadline;
+  if (req.body.status) sale.status = req.body.status;
+  res.json(sale);
 });
 
 module.exports = router;

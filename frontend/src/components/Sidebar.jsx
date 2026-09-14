@@ -1,109 +1,103 @@
 import React from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { 
   FiHome, FiShoppingBag, FiPackage, FiUsers, 
   FiBarChart2, FiTruck, FiBell, FiSettings, FiLogOut,
-  FiMenu, FiX
+  FiClipboard, FiClock, FiShield, FiChevronsLeft
 } from 'react-icons/fi';
+import { canAccessPath, getStoredUser, roleLabel, roleTheme } from '../auth/roles';
 
-const Sidebar = () => {
-  const navigate = useNavigate();
-  const [isOpen, setIsOpen] = React.useState(true);
-
+const Sidebar = ({ isOpen, onToggle }) => {
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    navigate('/login');
+    window.location.href = '/login';
   };
+
+  const user = getStoredUser();
+  const theme = roleTheme(user?.role);
+  const visible = (path) => canAccessPath(path, user?.role);
 
   const menuItems = [
     { path: '/dashboard', icon: FiHome, label: 'Dashboard' },
+    { path: '/users', icon: FiShield, label: 'Users' },
     { path: '/store', icon: FiShoppingBag, label: 'Store' },
-    { 
-      path: '/management', 
-      icon: FiPackage, 
-      label: 'Management',
-      subItems: [
-        { path: '/management/add-product', label: 'Add Product' },
-        { path: '/inventory', label: 'Inventory' },
-      ]
-    },
+    { path: '/orders', icon: FiClipboard, label: 'Orders' },
+    { path: '/management', icon: FiPackage, label: 'Add Product' },
     { path: '/inventory', icon: FiPackage, label: 'Inventory' },
     { path: '/customers', icon: FiUsers, label: 'Customers' },
     { path: '/analytics', icon: FiBarChart2, label: 'Analytics' },
     { path: '/stock-movement', icon: FiTruck, label: 'Stock Movement' },
-  ];
+    { path: '/pending', icon: FiClock, label: 'Access status' },
+  ].filter((item) => visible(item.path));
 
   const bottomMenuItems = [
     { path: '/notifications', icon: FiBell, label: 'Notifications' },
     { path: '/settings', icon: FiSettings, label: 'Settings' },
-  ];
+  ].filter((item) => visible(item.path));
 
   return (
     <>
-      {/* Mobile menu button */}
-      <button 
-        onClick={() => setIsOpen(!isOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white rounded-lg shadow"
-      >
-        {isOpen ? <FiX size={24} /> : <FiMenu size={24} />}
-      </button>
-
-      {/* Sidebar */}
       <div className={`
-        ${isOpen ? 'translate-x-0' : '-translate-x-full'}
-        lg:translate-x-0
+        ${isOpen ? 'translate-x-0 w-64' : '-translate-x-full w-0'}
         fixed lg:static
-        w-64 bg-white shadow-lg
+        ${theme.sidebar} shadow-lg
         flex flex-col
-        transition-transform duration-300
+        transition-all duration-300
         z-40
         h-screen
+        overflow-hidden
+        shrink-0
       `}>
-        {/* Logo */}
-        <div className="p-4 border-b">
-          <h2 className="text-xl font-bold text-gray-800">Inventory System</h2>
-          <p className="text-xs text-gray-500">Management</p>
+        <div className="p-4 border-b border-white/10 flex items-start justify-between gap-2 min-w-64">
+          <div>
+            <h2 className={`text-xl font-bold ${theme.brand}`}>Inventory System</h2>
+            <p className={`text-xs ${theme.muted}`}>{roleLabel(user?.role)} workspace</p>
+          </div>
+          <button
+            type="button"
+            onClick={onToggle}
+            className={`p-2 rounded-lg ${theme.link} shrink-0`}
+            aria-label="Hide sidebar"
+            title="Hide sidebar"
+          >
+            <FiChevronsLeft size={18} />
+          </button>
         </div>
         
-        {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto py-4">
+        <nav className="flex-1 overflow-y-auto py-4 min-w-64">
           {menuItems.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
               className={({ isActive }) =>
-                `flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 ${
-                  isActive ? 'bg-blue-50 text-blue-600 border-r-4 border-blue-600' : ''
-                }`
+                `flex items-center px-4 py-3 ${theme.link} ${isActive ? theme.active : ''}`
               }
             >
-              <item.icon className="mr-3" />
+              <item.icon className="mr-3 shrink-0" />
               {item.label}
             </NavLink>
           ))}
         </nav>
         
-        {/* Bottom Menu */}
-        <div className="border-t py-4">
+        <div className="border-t border-white/10 py-4 min-w-64">
           {bottomMenuItems.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
               className={({ isActive }) =>
-                `flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 ${
-                  isActive ? 'bg-blue-50 text-blue-600 border-r-4 border-blue-600' : ''
-                }`
+                `flex items-center px-4 py-3 ${theme.link} ${isActive ? theme.active : ''}`
               }
             >
-              <item.icon className="mr-3" />
+              <item.icon className="mr-3 shrink-0" />
               {item.label}
             </NavLink>
           ))}
           
           <button
+            type="button"
             onClick={handleLogout}
-            className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 w-full"
+            className={`flex items-center px-4 py-3 ${theme.link} w-full`}
           >
             <FiLogOut className="mr-3" />
             Logout
@@ -111,11 +105,10 @@ const Sidebar = () => {
         </div>
       </div>
 
-      {/* Overlay for mobile */}
       {isOpen && (
-        <div 
-          className="fixed inset-0  bg-opacity-50 z-30 lg:hidden"
-          onClick={() => setIsOpen(false)}
+        <div
+          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+          onClick={onToggle}
         />
       )}
     </>

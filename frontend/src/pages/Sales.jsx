@@ -7,6 +7,7 @@ import {
 } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import axios from 'axios';
+import { canSeeMoney } from '../auth/roles';
 
 const Sales = () => {
   const navigate = useNavigate();
@@ -21,80 +22,27 @@ const Sales = () => {
   const [loading, setLoading] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [quantity, setQuantity] = useState(1);
+  const [deadline, setDeadline] = useState('');
+  const showMoney = canSeeMoney();
 
-  // Mock products data based on your screenshot
   useEffect(() => {
-    const mockProducts = [
-      {
-        id: 1,
-        productId: 10022,
-        category: 'Plates',
-        name: 'Main Plate (18 Pieces)',
-        price: 2500.00,
-        stock: 50,
-        restockLevel: 15,
-        unit: 'KIT',
-        image: null
-      },
-      {
-        id: 2,
-        productId: 10019,
-        category: 'Dinnerware',
-        name: 'GODMIDDAG (18 Piece)',
-        price: 3900.00,
-        stock: 15,
-        restockLevel: 3,
-        unit: 'KIT',
-        image: null
-      },
-      {
-        id: 3,
-        productId: 10018,
-        category: 'Dinnerware',
-        name: 'GLADELIG (18 Piece Dinner Wareset)',
-        price: 9800.00,
-        stock: 70,
-        restockLevel: 5,
-        unit: 'KIT',
-        image: null
-      },
-      {
-        id: 4,
-        productId: 10017,
-        category: 'Dinnerware',
-        name: 'FÄRGKLAR (18 Piece Dinnerware)',
-        price: 2900.00,
-        stock: 50,
-        restockLevel: 15,
-        unit: 'KIT',
-        image: null
-      },
-      {
-        id: 5,
-        productId: 10016,
-        category: 'Bowls',
-        name: 'VARDAGEN',
-        price: 3500.00,
-        stock: 50,
-        restockLevel: 20,
-        unit: 'KIT',
-        image: null
-      },
-      {
-        id: 6,
-        productId: 10015,
-        category: 'Bowls',
-        name: 'MOSSMAL (Bowl, dot pattern/light green, 6½")',
-        price: 2000.00,
-        stock: 5,
-        restockLevel: 5,
-        unit: 'KIT',
-        image: null
+    const loadStoreProducts = async () => {
+      try {
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+        const response = await axios.get(`${API_URL}/products`);
+        const storeProducts = (Array.isArray(response.data) ? response.data : []).map((product) => ({
+          ...product,
+          id: product._id,
+          stock: Number(product.storeStock || 0)
+        }));
+        setProducts(storeProducts);
+        setFilteredProducts(storeProducts);
+      } catch (error) {
+        console.error('Error loading store products:', error);
       }
-    ];
-    
-    setProducts(mockProducts);
-    setFilteredProducts(mockProducts);
+    };
+
+    loadStoreProducts();
   }, []);
 
   // Filter products based on search
@@ -181,6 +129,7 @@ const Sales = () => {
         subtotal,
         tax,
         total,
+        deadline,
         transactionId: `FS-${Date.now()}`
       }
     });
@@ -238,7 +187,7 @@ const Sales = () => {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Product Name</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
+                    {showMoney && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Price</th>}
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stock</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Restock Level</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Unit</th>
@@ -261,7 +210,7 @@ const Sales = () => {
                       <td className="px-4 py-3 text-sm">{product.productId}</td>
                       <td className="px-4 py-3 text-sm">{product.category}</td>
                       <td className="px-4 py-3 text-sm font-medium">{product.name}</td>
-                      <td className="px-4 py-3 text-sm">ETB {product.price.toLocaleString()}</td>
+                      {showMoney && <td className="px-4 py-3 text-sm">ETB {product.price.toLocaleString()}</td>}
                       <td className="px-4 py-3">
                         <span className={`px-2 py-1 text-xs rounded-full ${
                           product.stock <= product.restockLevel 
@@ -340,7 +289,11 @@ const Sales = () => {
                     <div key={item.id} className="flex items-center justify-between border-b pb-3">
                       <div className="flex-1">
                         <p className="font-medium text-sm">{item.name}</p>
-                        <p className="text-xs text-gray-500">ETB {item.price.toLocaleString()} each</p>
+                        {showMoney ? (
+                          <p className="text-xs text-gray-500">ETB {item.price.toLocaleString()} each</p>
+                        ) : (
+                          <p className="text-xs text-gray-500">Qty {item.quantity}</p>
+                        )}
                       </div>
                       <div className="flex items-center space-x-2">
                         <button
@@ -374,23 +327,33 @@ const Sales = () => {
               )}
             </div>
 
-            {/* Order Summary */}
             {cart.length > 0 && (
-              <div className="p-4 border-t bg-gray-50">
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Subtotal:</span>
-                    <span>ETB {subtotal.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Tax (15%):</span>
-                    <span>ETB {tax.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between font-bold text-lg pt-2 border-t">
-                    <span>Total:</span>
-                    <span className="text-green-600">ETB {total.toLocaleString()}</span>
-                  </div>
+              <div className="p-4 border-t bg-gray-50 space-y-3">
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Order deadline</label>
+                  <input
+                    type="date"
+                    value={deadline}
+                    onChange={(e) => setDeadline(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  />
                 </div>
+                {showMoney && (
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Subtotal:</span>
+                      <span>ETB {subtotal.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Tax (15%):</span>
+                      <span>ETB {tax.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between font-bold text-lg pt-2 border-t">
+                      <span>Total:</span>
+                      <span className="text-green-600">ETB {total.toLocaleString()}</span>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -402,7 +365,7 @@ const Sales = () => {
               className="w-full bg-green-500 text-white py-3 rounded-lg hover:bg-green-600 transition flex items-center justify-center font-semibold"
             >
               <FiDollarSign className="mr-2" size={20} />
-              Proceed to Payment
+              {showMoney ? 'Proceed to Payment' : 'Complete order'}
             </button>
           )}
         </div>
@@ -414,7 +377,9 @@ const Sales = () => {
           <div className="bg-white rounded-lg p-6 w-96">
             <h3 className="text-lg font-semibold mb-4">Add to Cart</h3>
             <p className="mb-2">{selectedProduct.name}</p>
-            <p className="text-sm text-gray-500 mb-4">Price: ETB {selectedProduct.price.toLocaleString()}</p>
+            {showMoney && (
+              <p className="text-sm text-gray-500 mb-4">Price: ETB {selectedProduct.price.toLocaleString()}</p>
+            )}
             
             <div className="mb-4">
               <label className="block text-sm text-gray-600 mb-2">Quantity</label>
