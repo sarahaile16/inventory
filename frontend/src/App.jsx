@@ -4,12 +4,14 @@ import { useState, useEffect } from 'react';
 
 // Import Pages
 import Login from './pages/Login';
+import ForgotPassword from './pages/ForgotPassword';
 import Dashboard from './pages/Dashboard';
 import StoreManagement from './pages/StoreManagement';
 import AddProduct from './pages/AddProduct';
 import Inventory from './pages/Inventory';
+import RawMaterials from './pages/RawMaterials';
 import Customers from './pages/Customers';
-import CustomerDetails from './pages/CustomerDetails'; // 
+import CustomerDetails from './pages/customerDetails';
 import Analytics from './pages/Analytics';
 import StockMovement from './pages/StockMovement';
 import Notifications from './pages/Notifications';
@@ -32,12 +34,15 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is authenticated - check for user object in localStorage
+    // Need both profile + JWT — API rejects requests without the token
     const user = localStorage.getItem('user');
-    console.log('Auth check - user:', user);
-    
-    if (user) {
+    const token = localStorage.getItem('token');
+    if (user && token) {
       setIsAuthenticated(true);
+    } else {
+      localStorage.removeItem('user');
+      localStorage.removeItem('token');
+      setIsAuthenticated(false);
     }
     setLoading(false);
   }, []);
@@ -65,6 +70,16 @@ function App() {
            
         />
          <Route path="/signup" element={<SignUp />} />
+         <Route
+           path="/forgot-password"
+           element={
+             isAuthenticated ? (
+               <Navigate to={homePath(getStoredUser()?.role)} replace />
+             ) : (
+               <ForgotPassword />
+             )
+           }
+         />
 
 
         {/* Protected Routes with Layout */}
@@ -79,6 +94,7 @@ function App() {
             <Route path="/orders" element={<Orders />} />
             <Route path="/management" element={<AddProduct />} />
             <Route path="/inventory" element={<Inventory />} />
+            <Route path="/raw-materials" element={<RawMaterials />} />
             <Route path="/customers" element={<Customers />} />
             <Route path="/customers/:id" element={<CustomerDetails />} /> 
             <Route path="/analytics" element={<Analytics />} />

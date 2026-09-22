@@ -132,59 +132,57 @@ class AnalyticsController {
   // ========== HELPER METHODS ==========
 
   getMockData() {
-    // Products data
-    const products = [
-      { _id: 1, name: 'GODMIDDAG (18 Piece)', category: 'Dinnerware', price: 3900, cost: 2500, stock: 15, restockLevel: 3 },
-      { _id: 2, name: 'GLADELIG (18 Piece)', category: 'Dinnerware', price: 9800, cost: 6500, stock: 70, restockLevel: 5 },
-      { _id: 3, name: 'FÄRGKLAR (18 Piece)', category: 'Dinnerware', price: 2900, cost: 1800, stock: 50, restockLevel: 15 },
-      { _id: 4, name: 'VARDAGEN', category: 'Bowls', price: 3500, cost: 2200, stock: 50, restockLevel: 20 },
-      { _id: 5, name: 'MOSSMAL (Bowl)', category: 'Bowls', price: 2000, cost: 1200, stock: 5, restockLevel: 5 },
-      { _id: 6, name: 'VÄRDERA (6 pieces)', category: 'Plates', price: 1500, cost: 900, stock: 15, restockLevel: 5 },
-      { _id: 7, name: 'HAVSGÅDDA Plate', category: 'Plates', price: 200, cost: 100, stock: 100, restockLevel: 50 }
-    ];
+    // Use live empty store — no demo dinnerware / fake money
+    const store = require('../data/store');
+    const products = (store.products || []).map((p) => ({
+      _id: p._id,
+      name: p.name,
+      category: p.category,
+      price: Number(p.price || 0),
+      cost: Number(p.purchaseCost || p.cost || 0),
+      stock: Number(p.stock || 0),
+      restockLevel: Number(p.restockLevel || 0)
+    }));
 
-    // Sales data (last 30 days)
-    const sales = [];
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - 30);
-
-    for (let i = 0; i < 50; i++) {
-      const date = new Date(startDate);
-      date.setDate(date.getDate() + Math.floor(Math.random() * 30));
-      
-      const product = products[Math.floor(Math.random() * products.length)];
-      const quantity = Math.floor(Math.random() * 5) + 1;
-      const amount = product.price * quantity;
-      const cost = product.cost * quantity;
-      const profit = amount - cost;
-
-      sales.push({
-        _id: i + 1,
-        date: date.toISOString().split('T')[0],
-        productId: product._id,
-        productName: product.name,
-        category: product.category,
-        quantity,
-        amount,
-        cost,
-        profit,
-        margin: (profit / amount) * 100,
-        paymentMethod: ['Bank Transfer', 'Cash', 'Mobile Money'][Math.floor(Math.random() * 3)],
-        customerId: Math.floor(Math.random() * 5) + 1
+    const sales = (store.sales || []).flatMap((sale, index) => {
+      const items = sale.items || [];
+      if (items.length === 0) {
+        return [{
+          _id: index + 1,
+          date: sale.date,
+          productId: null,
+          productName: sale.customerName || 'Sale',
+          category: '',
+          quantity: 1,
+          amount: Number(sale.totalAmount || sale.firstPayment || 0),
+          cost: 0,
+          profit: Number(sale.totalAmount || sale.firstPayment || 0),
+          margin: 100,
+          paymentMethod: sale.paymentMethod || '',
+          customerId: null
+        }];
+      }
+      return items.map((item, i) => {
+        const amount = Number(item.amount ?? (item.price * item.qty) ?? 0);
+        const cost = Number(item.cost || 0);
+        return {
+          _id: `${index + 1}-${i + 1}`,
+          date: sale.date,
+          productId: item.productId || null,
+          productName: item.name,
+          category: item.category || '',
+          quantity: Number(item.qty || 1),
+          amount,
+          cost,
+          profit: amount - cost,
+          margin: amount > 0 ? ((amount - cost) / amount) * 100 : 0,
+          paymentMethod: sale.paymentMethod || '',
+          customerId: null
+        };
       });
-    }
+    });
 
-    // Sort by date
-    sales.sort((a, b) => new Date(a.date) - new Date(b.date));
-
-    // Customers data
-    const customers = [
-      { _id: 1, name: 'Dagmawi Tsegaye', totalSpent: 187500, orders: 15, lastOrder: '2025-02-20' },
-      { _id: 2, name: 'Benyam Assegdw', totalSpent: 436500, orders: 8, lastOrder: '2025-02-18' },
-      { _id: 3, name: 'Abebe Kebede', totalSpent: 94500, orders: 5, lastOrder: '2025-02-15' },
-      { _id: 4, name: 'Almaz Worku', totalSpent: 156000, orders: 7, lastOrder: '2025-02-22' },
-      { _id: 5, name: 'Kahlid Teshome', totalSpent: 23400, orders: 2, lastOrder: '2025-02-10' }
-    ];
+    const customers = [];
 
     return { products, sales, customers };
   }
@@ -220,11 +218,13 @@ class AnalyticsController {
           last30Days.setDate(last30Days.getDate() - 30);
           return new Date(c.lastOrder) >= last30Days;
         }).length,
-        averageSpend: customers.reduce((sum, c) => sum + c.totalSpent, 0) / customers.length
+        averageSpend: customers.length
+          ? customers.reduce((sum, c) => sum + c.totalSpent, 0) / customers.length
+          : 0
       },
       transactions: {
         total: sales.length,
-        averageValue: totalRevenue / sales.length
+        averageValue: sales.length ? totalRevenue / sales.length : 0
       }
     };
   }

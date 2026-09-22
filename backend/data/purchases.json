@@ -1,0 +1,13 @@
+[
+  {
+    "_id": 1,
+    "productId": 1,
+    "productName": "foam",
+    "quantity": 3,
+    "purchaseCost": 3900,
+    "totalPurchase": 11700,
+    "supplier": "ke abebe",
+    "itemType": "raw",
+    "date": "2026-09-22"
+  }
+]

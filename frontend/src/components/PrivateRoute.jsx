@@ -5,9 +5,10 @@ import { canAccessPath, getStoredUser, homePath } from '../auth/roles';
 const PrivateRoute = ({ isAuthenticated }) => {
   const location = useLocation();
   const user = getStoredUser();
+  const token = localStorage.getItem('token');
 
-  if (!isAuthenticated && !user) {
-    return <Navigate to="/login" replace />;
+  if ((!isAuthenticated && !user) || !token) {
+    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
 
   if (!canAccessPath(location.pathname, user?.role)) {

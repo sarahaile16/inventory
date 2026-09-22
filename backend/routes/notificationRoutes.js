@@ -1,15 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { sales, products } = require('../data/store');
-
-const daysUntil = (deadline) => {
-  if (!deadline) return null;
-  const due = new Date(deadline);
-  const today = new Date();
-  due.setHours(0, 0, 0, 0);
-  today.setHours(0, 0, 0, 0);
-  return Math.round((due - today) / 86400000);
-};
+const { requireAuth, requireRoles, ROLES, canSeeMoney } = require('../middleware/auth');
+const { daysUntil, checkAndNotifyDeadlineAlerts } = require('../utils/deadlineAlerts');
 
 const formatMoney = (value) =>
   Number(value || 0).toLocaleString('en-US', {
@@ -17,10 +10,18 @@ const formatMoney = (value) =>
     maximumFractionDigits: 2
   });
 
-router.get('/', (req, res) => {
-  const role = String(req.query.role || '').toLowerCase();
-  const isAdmin = role === 'admin' || role === 'management' || role === 'manager';
+router.use(requireAuth);
+router.use(requireRoles(ROLES.ADMIN, ROLES.MANAGEMENT, ROLES.STAFF));
+
+router.get('/', async (req, res) => {
+  const role = req.user.role;
+  const isMoney = canSeeMoney(role);
   const items = [];
+
+  // Fire-and-forget admin deadline emails when anyone opens notifications
+  checkAndNotifyDeadlineAlerts().catch((err) => {
+    console.warn('Deadline email check failed:', err.message);
+  });
 
   sales.forEach((sale) => {
     const rest = Number(sale.restPaid ? 0 : sale.restPayment || 0);
@@ -33,7 +34,7 @@ router.get('/', (req, res) => {
         ? 'due today'
         : `due in ${days} day(s)`;
 
-    if (isAdmin) {
+    if (isMoney) {
       items.push({
         id: `deadline-${sale._id}`,
         type: 'deadline',
@@ -45,7 +46,8 @@ router.get('/', (req, res) => {
         title: 'Customer deadline',
         message: `${sale.customerName || 'Customer'} · ${sale.transactionId} is ${when}. Whole payment ETB ${formatMoney(sale.totalAmount)}. First payment ETB ${formatMoney(sale.firstPayment)}. Rest on delivery ETB ${formatMoney(rest)}.`
       });
-    } else if (role === 'staff') {
+    } else {
+      // Staff: deadline only — no phone, no payment amounts
       items.push({
         id: `deadline-${sale._id}`,
         type: 'deadline',
@@ -60,21 +62,23 @@ router.get('/', (req, res) => {
     }
   });
 
-  products.forEach((product) => {
-    if (Number(product.stock) <= Number(product.restockLevel)) {
-      items.push({
-        id: `stock-${product._id}`,
-        type: 'low_stock',
-        color: 'red',
-        read: false,
-        date: new Date().toISOString().slice(0, 10),
-        time: 'Now',
-        link: '/inventory',
-        title: 'Low stock',
-        message: `${product.name} is running low on warehouse stock.`
-      });
-    }
-  });
+  if (isMoney) {
+    products.forEach((product) => {
+      if (Number(product.stock) <= Number(product.restockLevel || 0) && Number(product.restockLevel || 0) > 0) {
+        items.push({
+          id: `stock-${product._id}`,
+          type: 'low_stock',
+          color: 'red',
+          read: false,
+          date: new Date().toISOString().slice(0, 10),
+          time: 'Now',
+          link: '/inventory',
+          title: 'Low stock',
+          message: `${product.name} is running low on warehouse stock.`
+        });
+      }
+    });
+  }
 
   res.json(items);
 });

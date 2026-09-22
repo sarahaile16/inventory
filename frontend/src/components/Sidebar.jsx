@@ -1,9 +1,9 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { 
-  FiHome, FiShoppingBag, FiPackage, FiUsers, 
+import {
+  FiHome, FiShoppingBag, FiPackage, FiUsers,
   FiBarChart2, FiTruck, FiBell, FiSettings, FiLogOut,
-  FiClipboard, FiClock, FiShield, FiChevronsLeft
+  FiClipboard, FiClock, FiShield, FiChevronsLeft, FiX, FiLayers
 } from 'react-icons/fi';
 import { canAccessPath, getStoredUser, roleLabel, roleTheme } from '../auth/roles';
 
@@ -25,6 +25,7 @@ const Sidebar = ({ isOpen, onToggle }) => {
     { path: '/orders', icon: FiClipboard, label: 'Orders' },
     { path: '/management', icon: FiPackage, label: 'Add Product' },
     { path: '/inventory', icon: FiPackage, label: 'Inventory' },
+    { path: '/raw-materials', icon: FiLayers, label: 'Raw Materials' },
     { path: '/customers', icon: FiUsers, label: 'Customers' },
     { path: '/analytics', icon: FiBarChart2, label: 'Analytics' },
     { path: '/stock-movement', icon: FiTruck, label: 'Stock Movement' },
@@ -36,79 +37,90 @@ const Sidebar = ({ isOpen, onToggle }) => {
     { path: '/settings', icon: FiSettings, label: 'Settings' },
   ].filter((item) => visible(item.path));
 
+  const closeIfMobile = () => {
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      onToggle();
+    }
+  };
+
+  const linkClass = ({ isActive }) =>
+    `flex items-center gap-2.5 px-3 py-2 lg:px-3.5 lg:py-2.5 text-xs lg:text-sm rounded-lg mx-2 ${theme.link} ${
+      isActive ? theme.active : ''
+    }`;
+
   return (
     <>
-      <div className={`
-        ${isOpen ? 'translate-x-0 w-64' : '-translate-x-full w-0'}
-        fixed lg:static
-        ${theme.sidebar} shadow-lg
-        flex flex-col
-        transition-all duration-300
-        z-40
-        h-screen
-        overflow-hidden
-        shrink-0
-      `}>
-        <div className="p-4 border-b border-white/10 flex items-start justify-between gap-2 min-w-64">
-          <div>
-            <h2 className={`text-xl font-bold ${theme.brand}`}>Inventory System</h2>
-            <p className={`text-xs ${theme.muted}`}>{roleLabel(user?.role)} workspace</p>
+      <aside
+        className={`
+          fixed lg:static inset-y-0 left-0 z-40
+          flex flex-col overflow-hidden shrink-0
+          ${theme.sidebar} shadow-xl lg:shadow-lg
+          transition-transform duration-300 ease-out
+          w-[min(15rem,78vw)] lg:w-56
+          ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+          ${isOpen ? 'lg:w-56' : 'lg:w-0'}
+        `}
+      >
+        <div className="px-3 py-2.5 lg:px-3.5 lg:py-3 border-b border-white/10 flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <h2 className={`text-sm lg:text-base font-bold truncate ${theme.brand}`}>FurniStock</h2>
+            <p className={`text-[10px] truncate ${theme.muted}`}>{roleLabel(user?.role)}</p>
           </div>
           <button
             type="button"
             onClick={onToggle}
-            className={`p-2 rounded-lg ${theme.link} shrink-0`}
-            aria-label="Hide sidebar"
-            title="Hide sidebar"
+            className={`p-1.5 rounded-lg ${theme.link} shrink-0`}
+            aria-label="Close sidebar"
+            title="Close sidebar"
           >
-            <FiChevronsLeft size={18} />
+            <span className="lg:hidden"><FiX size={16} /></span>
+            <span className="hidden lg:inline"><FiChevronsLeft size={16} /></span>
           </button>
         </div>
-        
-        <nav className="flex-1 overflow-y-auto py-4 min-w-64">
+
+        <nav className="flex-1 overflow-y-auto py-2 space-y-0.5">
           {menuItems.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
-              className={({ isActive }) =>
-                `flex items-center px-4 py-3 ${theme.link} ${isActive ? theme.active : ''}`
-              }
+              onClick={closeIfMobile}
+              className={linkClass}
             >
-              <item.icon className="mr-3 shrink-0" />
-              {item.label}
+              <item.icon className="shrink-0" size={15} />
+              <span className="truncate">{item.label}</span>
             </NavLink>
           ))}
         </nav>
-        
-        <div className="border-t border-white/10 py-4 min-w-64">
+
+        <div className="border-t border-white/10 py-2 space-y-0.5">
           {bottomMenuItems.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
-              className={({ isActive }) =>
-                `flex items-center px-4 py-3 ${theme.link} ${isActive ? theme.active : ''}`
-              }
+              onClick={closeIfMobile}
+              className={linkClass}
             >
-              <item.icon className="mr-3 shrink-0" />
-              {item.label}
+              <item.icon className="shrink-0" size={15} />
+              <span className="truncate">{item.label}</span>
             </NavLink>
           ))}
-          
+
           <button
             type="button"
             onClick={handleLogout}
-            className={`flex items-center px-4 py-3 ${theme.link} w-full`}
+            className={`flex items-center gap-2.5 px-3 py-2 lg:px-3.5 lg:py-2.5 text-xs lg:text-sm rounded-lg mx-2 w-[calc(100%-1rem)] ${theme.link}`}
           >
-            <FiLogOut className="mr-3" />
+            <FiLogOut className="shrink-0" size={15} />
             Logout
           </button>
         </div>
-      </div>
+      </aside>
 
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+          className="fixed inset-0 bg-black/45 z-30 lg:hidden"
           onClick={onToggle}
+          aria-hidden="true"
         />
       )}
     </>

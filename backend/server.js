@@ -6,90 +6,64 @@ const path = require('path');
 const fs = require('fs');
 const cookieParser = require('cookie-parser');
 
-dotenv.config();
+dotenv.config({ path: path.join(__dirname, '.env') });
 
 const app = express();
+const isVercel = Boolean(process.env.VERCEL);
 
 // ========== SECURITY MIDDLEWARE ==========
 app.use((req, res, next) => {
-  // Security headers
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('X-XSS-Protection', '1; mode=block');
-
-  // Content Security Policy (adjust as needed)
-  res.setHeader('Content-Security-Policy',
-    "default-src 'self'; " +
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
-    "style-src 'self' 'unsafe-inline'; " +
-    "img-src 'self' data: blob:; " +
-    "font-src 'self';"
-  );
-
   next();
 });
 
-// ========== COOKIE PARSER ==========
 app.use(cookieParser());
 
-// ========== CORS CONFIGURATION ==========
-app.use(cors({
-  origin: [
-    'http://localhost:5173',
-    'http://127.0.0.1:5173',
-    'http://localhost:5174',
-    'http://127.0.0.1:5174'
-  ],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+const defaultOrigins = [
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:5174',
+  'http://127.0.0.1:5174'
+];
 
-// ========== BODY PARSERS ==========
+const envOrigins = String(process.env.CORS_ORIGINS || process.env.FRONTEND_URL || '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Same-origin / server-to-server / Vercel preview
+      if (!origin) return callback(null, true);
+      if (defaultOrigins.includes(origin) || envOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      if (/\.vercel\.app$/i.test(origin) || /\.vercel\.app$/i.test(new URL(origin).hostname)) {
+        return callback(null, true);
+      }
+      return callback(null, true); // allow for demo deploy; tighten later if needed
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+  })
+);
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
-// ========== STATIC FILES ==========
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// ========== REQUEST LOGGER ==========
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
   next();
 });
 
-// ========== ROUTES ==========
-app.use('/api/auth', require('./routes/authRoutes'));
-app.use('/api/products', require('./routes/productRoutes'));
-app.use('/api/users', require('./routes/userRoutes'));
-app.use('/api/customers', require('./routes/customerRoutes'));
-app.use('/api/sales', require('./routes/saleRoutes'));
-app.use('/api/settings', require('./routes/settingRoutes'));
-app.use('/api/analytics', require('./routes/analyticsRoutes'));
-app.use('/api/movements', require('./routes/movementRoutes'));
-app.use('/api/notifications', require('./routes/notificationRoutes'));
-
-// ========== TEST ROUTE ==========
-app.get('/api/test', (req, res) => {
-  res.json({
-    message: 'Server is running!',
-    cookies: req.cookies ? 'Cookies enabled' : 'No cookies',
-    time: new Date().toISOString()
-  });
-});
-
-// ========== HEALTH CHECK ROUTE ==========
-app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
-  });
-});
-
 let memoryServer = null;
 let server;
+let dbReady = null;
 
 async function seedDemoUsers() {
   try {
@@ -110,22 +84,30 @@ async function seedDemoUsers() {
 }
 
 async function connectDatabase() {
+  if (mongoose.connection.readyState === 1) return 'connected';
+
   const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/inventory_db';
+  const looksLikeAtlas = /mongodb(\+srv)?:\/\//.test(uri) && !/localhost|127\.0\.0\.1/.test(uri);
 
   try {
-    await mongoose.connect(uri, { serverSelectionTimeoutMS: 5000 });
+    await mongoose.connect(uri, { serverSelectionTimeoutMS: 8000 });
     console.log('✅ MongoDB connected successfully');
     return 'local';
   } catch (localError) {
-    if (process.env.NODE_ENV === 'production') {
-      console.error('❌ MongoDB connection error:', localError.message);
-      console.error('   Start MongoDB, or set MONGODB_URI in backend/.env');
-      process.exit(1);
+    console.warn(`⚠️  Could not connect to MongoDB: ${localError.message}`);
+
+    if (isVercel || process.env.SKIP_MEMORY_MONGO === 'true') {
+      console.warn('⚠️  Continuing without MongoDB (demo auth accounts still work).');
+      console.warn('   Set MONGODB_URI (Atlas) for persistent user accounts.');
+      return 'none';
     }
 
-    console.warn(`⚠️  Could not connect to ${uri}`);
-    console.warn('   Starting in-memory MongoDB for development (data resets on restart).');
+    if (process.env.NODE_ENV === 'production' && looksLikeAtlas) {
+      console.error('❌ MongoDB Atlas connection failed in production.');
+      throw localError;
+    }
 
+    console.warn('   Starting in-memory MongoDB for development (data resets on restart).');
     try {
       await mongoose.disconnect().catch(() => {});
       const { MongoMemoryServer } = require('mongodb-memory-server');
@@ -135,19 +117,74 @@ async function connectDatabase() {
       return 'memory';
     } catch (memoryError) {
       console.error('❌ Could not start in-memory MongoDB:', memoryError.message);
-      console.error('   Install MongoDB locally, or set MONGODB_URI to a MongoDB Atlas URI.');
-      process.exit(1);
+      if (process.env.NODE_ENV === 'production' && !isVercel) {
+        throw memoryError;
+      }
+      return 'none';
     }
   }
 }
+
+async function ensureDatabase() {
+  if (!dbReady) {
+    dbReady = (async () => {
+      const mode = await connectDatabase();
+      if (mode !== 'none') await seedDemoUsers();
+      return mode;
+    })();
+  }
+  return dbReady;
+}
+
+// Ensure DB before API routes (important on Vercel cold starts)
+app.use(async (req, res, next) => {
+  if (!req.path.startsWith('/api')) return next();
+  try {
+    await ensureDatabase();
+  } catch (error) {
+    console.error('DB init error:', error.message);
+  }
+  next();
+});
+
+app.use('/api/auth', require('./routes/authRoutes'));
+app.use('/api/products', require('./routes/productRoutes'));
+app.use('/api/users', require('./routes/userRoutes'));
+app.use('/api/customers', require('./routes/customerRoutes'));
+app.use('/api/sales', require('./routes/saleRoutes'));
+app.use('/api/settings', require('./routes/settingRoutes'));
+app.use('/api/analytics', require('./routes/analyticsRoutes'));
+app.use('/api/movements', require('./routes/movementRoutes'));
+app.use('/api/notifications', require('./routes/notificationRoutes'));
+
+app.get('/api/test', (req, res) => {
+  res.json({
+    message: 'Server is running!',
+    platform: isVercel ? 'vercel' : 'node',
+    time: new Date().toISOString()
+  });
+});
+
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    platform: isVercel ? 'vercel' : 'node'
+  });
+});
 
 function serveFrontend() {
   const distPath = path.join(__dirname, '../frontend/dist');
   const distExists = fs.existsSync(path.join(distPath, 'index.html'));
 
-  if (distExists) {
+  if (!isVercel && distExists) {
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
+      if (req.path.startsWith('/api')) {
+        return res.status(404).json({ message: 'API route not found' });
+      }
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
@@ -168,8 +205,7 @@ async function shutdown() {
 }
 
 async function start() {
-  const dbMode = await connectDatabase();
-  await seedDemoUsers();
+  await ensureDatabase();
   const { distPath, distExists } = serveFrontend();
 
   app.use((err, req, res, next) => {
@@ -182,48 +218,28 @@ async function start() {
 
   const PORT = process.env.PORT || 5001;
   server = app.listen(PORT, () => {
-    const mongoReady = mongoose.connection.readyState === 1;
-    const mongoLabel = !mongoReady
-      ? 'Disconnected ❌'
-      : dbMode === 'memory'
-        ? 'Connected ✅ (in-memory, data resets on restart)'
-        : 'Connected ✅';
-
-    console.log('\n' + '='.repeat(60));
     console.log(`🚀 SERVER RUNNING ON PORT ${PORT}`);
-    console.log('='.repeat(60));
-    console.log(`📍 API: http://localhost:${PORT}/api/test`);
-    console.log(`📍 Health: http://localhost:${PORT}/api/health`);
-    console.log(`📍 Auth: http://localhost:${PORT}/api/auth/login`);
-    console.log(`📍 Products: http://localhost:${PORT}/api/products`);
-    console.log(`📍 Customers: http://localhost:${PORT}/api/customers`);
-    console.log(`📍 Users: http://localhost:${PORT}/api/users`);
-    console.log(`📍 Settings: http://localhost:${PORT}/api/settings/categories`);
-    console.log('='.repeat(60));
-    console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`📝 MongoDB: ${mongoLabel}`);
-    if (distExists) {
-      console.log(`📝 Frontend build: ${distPath}`);
-    } else {
-      console.log('📝 Frontend: run Vite separately → http://localhost:5174');
-      console.log(`   cd frontend && npm run dev`);
-    }
-    console.log('='.repeat(60));
+    console.log(`📍 API: http://localhost:${PORT}/api/health`);
+    if (distExists) console.log(`📝 Frontend build: ${distPath}`);
+    else console.log('📝 Frontend: cd frontend && npm run dev → http://localhost:5174');
   });
 
   server.on('error', (err) => {
     if (err.code === 'EADDRINUSE') {
-      console.error(`\n❌ Port ${PORT} is already in use by another app.`);
-      console.error('   Stop that app, or set a different PORT in backend/.env\n');
+      console.error(`\n❌ Port ${PORT} is already in use.\n`);
       process.exit(1);
     }
     throw err;
   });
 }
 
-process.on('SIGTERM', shutdown);
-process.on('SIGINT', shutdown);
-
-start();
+if (!isVercel) {
+  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', shutdown);
+  start();
+} else {
+  // Warm DB on cold start (best-effort)
+  ensureDatabase().catch((err) => console.warn('Vercel DB warmup:', err.message));
+}
 
 module.exports = app;

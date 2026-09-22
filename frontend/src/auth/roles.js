@@ -16,6 +16,7 @@ const PAGE_ROLES = {
   '/customers': [ROLES.ADMIN, ROLES.MANAGEMENT, ROLES.STAFF],
   '/management': [ROLES.ADMIN, ROLES.MANAGEMENT],
   '/inventory': [ROLES.ADMIN, ROLES.MANAGEMENT],
+  '/raw-materials': [ROLES.ADMIN, ROLES.MANAGEMENT],
   '/analytics': [ROLES.ADMIN, ROLES.MANAGEMENT],
   '/report': [ROLES.ADMIN, ROLES.MANAGEMENT],
   '/stock-movement': [ROLES.ADMIN, ROLES.MANAGEMENT],
@@ -77,11 +78,21 @@ export function canAccessPath(pathname, role) {
 
 export function can(action, role) {
   const allowed = ACTION_ROLES[action] || [ROLES.ADMIN];
-  return allowed.includes(normalizeRole(role));
+  const effectiveRole = role !== undefined && role !== null ? role : getStoredUser()?.role;
+  return allowed.includes(normalizeRole(effectiveRole));
 }
 
 export function canSeeMoney(role) {
   return can('viewMoney', role);
+}
+
+/** Staff cannot see customer phone / email / payment fields */
+export function canSeeCustomerContact(role) {
+  return canSeeMoney(role);
+}
+
+export function canSeePayments(role) {
+  return canSeeMoney(role);
 }
 
 export function roleLabel(role) {

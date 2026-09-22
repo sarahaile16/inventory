@@ -1,0 +1,15 @@
+{
+  "name": "furnistock-inventory",
+  "private": true,
+  "version": "1.0.0",
+  "description": "FurniStock inventory — Vercel frontend + API",
+  "scripts": {
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && npm run dev",
+    "build": "cd frontend && npm run build",
+    "start": "cd backend && npm start"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

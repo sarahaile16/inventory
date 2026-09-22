@@ -1,0 +1,25 @@
+[
+  {
+    "_id": 1,
+    "productId": "10001",
+    "name": "foam",
+    "category": "Foam / Cushion",
+    "itemType": "raw",
+    "price": 1500,
+    "purchaseCost": 3900,
+    "totalPurchase": 11700,
+    "supplier": "ke abebe",
+    "stock": 3,
+    "restockLevel": 0,
+    "storeStock": 0,
+    "unit": "SET",
+    "location": "addisabav",
+    "batchNumber": "",
+    "itemId": "",
+    "serialNumber": "",
+    "expiryDate": "",
+    "partNumber": "",
+    "image": null,
+    "createdAt": "2026-09-22T07:44:07.023Z"
+  }
+]

@@ -2,6 +2,15 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { FiCheck, FiShield, FiUserCheck, FiUsers } from 'react-icons/fi';
 import { roleLabel } from '../auth/roles';
+import {
+  PageShell,
+  PageHero,
+  StatGrid,
+  StatCard,
+  Panel,
+  SoftButton,
+  LoadingBlock
+} from '../components/ui/PageChrome';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 
@@ -44,88 +53,95 @@ const Users = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500"></div>
-      </div>
+      <PageShell>
+        <LoadingBlock />
+      </PageShell>
     );
   }
 
   return (
-    <div className="p-4 sm:p-6">
-      <div className="rounded-3xl bg-gradient-to-r from-slate-950 to-slate-800 p-6 sm:p-8 text-white mb-6">
-        <p className="text-amber-300 text-sm uppercase tracking-wide">Admin control</p>
-        <h1 className="text-3xl font-bold mt-1">Account roles</h1>
-        <p className="text-slate-300 mt-2 max-w-2xl">
-          New people register as User and choose Staff or Management. Approve the request here.
-          They must log in again after a role change.
-        </p>
-      </div>
+    <PageShell>
+      <PageHero
+        tone="slate"
+        eyebrow="Admin control"
+        title="Account roles"
+        subtitle="New people register as User and choose Staff or Management. Approve the request here. They must log in again after a role change."
+      />
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <div className="bg-white rounded-2xl p-5 border shadow-sm">
-          <FiUsers className="text-slate-500 mb-2" />
-          <p className="text-sm text-gray-500">Total accounts</p>
-          <p className="text-3xl font-bold">{users.length}</p>
-        </div>
-        <div className="bg-white rounded-2xl p-5 border shadow-sm">
-          <FiShield className="text-amber-500 mb-2" />
-          <p className="text-sm text-gray-500">Waiting approval</p>
-          <p className="text-3xl font-bold text-amber-600">{pending.length}</p>
-        </div>
-        <div className="bg-white rounded-2xl p-5 border shadow-sm">
-          <FiUserCheck className="text-emerald-500 mb-2" />
-          <p className="text-sm text-gray-500">Active roles</p>
-          <p className="text-3xl font-bold text-emerald-600">{users.length - pending.length}</p>
-        </div>
-      </div>
+      <StatGrid cols="3">
+        <StatCard
+          label="Total accounts"
+          value={users.length}
+          icon={<FiUsers size={16} />}
+          accent="slate"
+        />
+        <StatCard
+          label="Waiting approval"
+          value={pending.length}
+          icon={<FiShield size={16} />}
+          accent="amber"
+        />
+        <StatCard
+          label="Active roles"
+          value={users.length - pending.length}
+          icon={<FiUserCheck size={16} />}
+          accent="emerald"
+        />
+      </StatGrid>
 
       {message && (
-        <div className="mb-4 rounded-xl bg-amber-50 border border-amber-100 text-amber-900 px-4 py-3 text-sm">
+        <div className="mb-4 rounded-xl bg-amber-50 border border-amber-100 text-amber-900 px-3 py-2 text-xs">
           {message}
         </div>
       )}
 
-      <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
+      <Panel title="All accounts" bodyClassName="p-0 sm:p-0">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[820px]">
-            <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+          <table className="w-full min-w-[700px]">
+            <thead className="bg-slate-50 text-left text-[10px] sm:text-xs uppercase text-slate-500">
               <tr>
-                <th className="px-4 py-3">Account</th>
-                <th className="px-4 py-3">Current role</th>
-                <th className="px-4 py-3">Requested</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Assign role</th>
+                <th className="px-3 py-2">Account</th>
+                <th className="px-3 py-2">Current role</th>
+                <th className="px-3 py-2">Requested</th>
+                <th className="px-3 py-2">Status</th>
+                <th className="px-3 py-2">Assign role</th>
               </tr>
             </thead>
-            <tbody className="divide-y">
+            <tbody className="divide-y divide-slate-100">
               {users.map((user) => (
-                <tr key={user.id} className="hover:bg-slate-50">
-                  <td className="px-4 py-4">
-                    <p className="font-medium text-slate-900">{user.fullName || user.username}</p>
-                    <p className="text-xs text-gray-500">{user.email}</p>
+                <tr key={user.id} className="hover:bg-teal-50/40">
+                  <td className="px-3 py-2.5 min-w-0">
+                    <p className="text-sm font-medium text-slate-900 truncate">
+                      {user.fullName || user.username}
+                    </p>
+                    <p className="text-[10px] text-slate-500 truncate">{user.email}</p>
                   </td>
-                  <td className="px-4 py-4">
-                    <span className="px-2 py-1 rounded-full text-xs bg-slate-100 text-slate-700">
+                  <td className="px-3 py-2.5">
+                    <span className="px-1.5 py-0.5 rounded-md text-[10px] bg-slate-100 text-slate-700">
                       {roleLabel(user.role)}
                     </span>
                   </td>
-                  <td className="px-4 py-4 text-sm">
+                  <td className="px-3 py-2.5 text-xs">
                     {user.requestedRole ? roleLabel(user.requestedRole) : '—'}
                   </td>
-                  <td className="px-4 py-4">
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      user.status === 'Pending' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
-                    }`}>
+                  <td className="px-3 py-2.5">
+                    <span
+                      className={`px-1.5 py-0.5 rounded-md text-[10px] ${
+                        user.status === 'Pending'
+                          ? 'bg-amber-100 text-amber-800'
+                          : 'bg-emerald-100 text-emerald-800'
+                      }`}
+                    >
                       {user.status || 'Active'}
                     </span>
                   </td>
-                  <td className="px-4 py-4">
-                    <div className="flex flex-wrap gap-2 items-center">
+                  <td className="px-3 py-2.5">
+                    <div className="flex flex-wrap gap-1.5 items-center">
                       <select
                         value={user.role}
                         disabled={savingId === String(user.id)}
                         onChange={(e) => updateRole(user, e.target.value)}
-                        className="border rounded-lg px-3 py-2 text-sm"
+                        className="border border-slate-200 rounded-lg px-2 py-1.5 text-xs bg-slate-50/70 focus:outline-none focus:ring-2 focus:ring-teal-500/30"
                       >
                         <option value="user">User</option>
                         <option value="staff">Staff</option>
@@ -133,13 +149,12 @@ const Users = () => {
                         <option value="admin">Admin</option>
                       </select>
                       {user.requestedRole && user.role === 'user' && (
-                        <button
-                          type="button"
+                        <SoftButton
                           onClick={() => updateRole(user, user.requestedRole)}
-                          className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-amber-500 text-white text-sm hover:bg-amber-600"
+                          className="bg-amber-500 text-white hover:bg-amber-600"
                         >
-                          <FiCheck /> Approve
-                        </button>
+                          <FiCheck size={12} /> Approve
+                        </SoftButton>
                       )}
                     </div>
                   </td>
@@ -148,8 +163,8 @@ const Users = () => {
             </tbody>
           </table>
         </div>
-      </div>
-    </div>
+      </Panel>
+    </PageShell>
   );
 };
 

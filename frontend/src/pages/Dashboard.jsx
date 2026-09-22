@@ -3,6 +3,18 @@ import { Link, useNavigate } from 'react-router-dom';
 import { FiPackage, FiEdit, FiTrash2, FiEye, FiUsers, FiBarChart2, FiShoppingBag, FiShield } from 'react-icons/fi';
 import axios from 'axios';
 import { can, roleLabel } from '../auth/roles';
+import {
+  PageShell,
+  PageHero,
+  StatGrid,
+  StatCard,
+  Panel,
+  SoftButton,
+  HeroLink,
+  LoadingBlock,
+  EmptyState,
+  SearchInput
+} from '../components/ui/PageChrome';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 
@@ -108,227 +120,241 @@ const Dashboard = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500"></div>
-      </div>
+      <PageShell>
+        <LoadingBlock />
+      </PageShell>
     );
   }
 
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-[50vh] px-4">
-        <div className="bg-red-100 border border-red-400 text-red-700 px-6 py-4 rounded">
+      <PageShell>
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
           <p>{error}</p>
-          <button
+          <SoftButton
             onClick={fetchDashboardData}
-            className="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+            className="mt-3 bg-teal-700 text-white hover:bg-teal-800"
           >
             Retry
-          </button>
+          </SoftButton>
         </div>
-      </div>
+      </PageShell>
     );
   }
 
   return (
-    <div className="p-4 sm:p-6">
-      <div className="rounded-3xl bg-gradient-to-br from-slate-950 via-slate-900 to-amber-900 p-6 sm:p-8 text-white mb-6 overflow-hidden relative">
-        <div className="absolute -right-10 -top-10 w-48 h-48 rounded-full bg-amber-400/10" />
-        <div className="relative">
-          <p className="text-amber-300 text-sm uppercase tracking-[0.2em]">Admin command center</p>
-          <h1 className="text-3xl sm:text-4xl font-bold mt-2">Full-store overview</h1>
-          <p className="text-slate-300 mt-2 max-w-2xl">
-            Only admins see this board. Approve new users, watch warehouse value, and jump into inventory or reports.
-          </p>
-          <div className="flex flex-wrap gap-2 mt-5">
-            <Link to="/users" className="px-4 py-2 rounded-xl bg-amber-400 text-slate-950 font-medium hover:bg-amber-300">
-              Manage roles
-            </Link>
-            <Link to="/inventory" className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15">
-              Warehouse
-            </Link>
-            <Link to="/notifications" className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15">
-              Deadline alerts
-            </Link>
-            <Link to="/analytics" className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15">
-              Reports
-            </Link>
-          </div>
-        </div>
-      </div>
+    <PageShell>
+      <PageHero
+        tone="slate"
+        eyebrow="Admin command center"
+        title="Full-store overview"
+        subtitle="Only admins see this board. Approve new users, watch warehouse value, and jump into inventory or reports."
+        actions={
+          <>
+            <HeroLink to="/users" primary>Manage roles</HeroLink>
+            <HeroLink to="/inventory">Warehouse</HeroLink>
+            <HeroLink to="/notifications">Deadline alerts</HeroLink>
+            <HeroLink to="/analytics">Reports</HeroLink>
+          </>
+        }
+      />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6 mb-6">
-        <Link to="/analytics" className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition">
-          <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center mb-3">
-            <FiBarChart2 />
-          </div>
-          <p className="text-gray-500 text-sm">Total Sales</p>
-          <p className="text-2xl font-bold">ETB {stats.totalSales.toLocaleString()}</p>
-        </Link>
-        <Link to="/inventory" className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition">
-          <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center mb-3">
-            <FiPackage />
-          </div>
-          <p className="text-gray-500 text-sm">Products</p>
-          <p className="text-2xl font-bold">{stats.totalProducts}</p>
-          <p className="text-xs text-gray-400 mt-1">Bought ETB {stats.totalPurchases.toLocaleString()}</p>
-        </Link>
-        <Link to="/inventory?low=1" className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition">
-          <div className="w-10 h-10 rounded-xl bg-yellow-100 text-yellow-700 flex items-center justify-center mb-3">
-            <FiShoppingBag />
-          </div>
-          <p className="text-gray-500 text-sm">Low stock</p>
-          <p className="text-2xl font-bold text-yellow-600">{stats.lowStockItems}</p>
-        </Link>
-        <Link to="/notifications" className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition">
-          <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center mb-3">
-            <FiUsers />
-          </div>
-          <p className="text-gray-500 text-sm">Rest due near deadline</p>
-          <p className="text-2xl font-bold text-indigo-700">{stats.restDueNear}</p>
-          <p className="text-xs text-gray-400 mt-1">{pendingUsers.length} role requests · {stats.totalCustomers} customers</p>
-        </Link>
-      </div>
+      <StatGrid cols="4">
+        <StatCard
+          to="/analytics"
+          label="Total Sales"
+          value={`ETB ${stats.totalSales.toLocaleString()}`}
+          icon={<FiBarChart2 size={16} />}
+          accent="amber"
+        />
+        <StatCard
+          to="/inventory"
+          label="Products"
+          value={stats.totalProducts}
+          hint={`Bought ETB ${stats.totalPurchases.toLocaleString()}`}
+          icon={<FiPackage size={16} />}
+          accent="slate"
+        />
+        <StatCard
+          to="/inventory?low=1"
+          label="Low stock"
+          value={stats.lowStockItems}
+          icon={<FiShoppingBag size={16} />}
+          accent="amber"
+        />
+        <StatCard
+          to="/notifications"
+          label="Rest due near"
+          value={stats.restDueNear}
+          hint={`${pendingUsers.length} role requests · ${stats.totalCustomers} customers`}
+          icon={<FiUsers size={16} />}
+          accent="violet"
+        />
+      </StatGrid>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6">
-        <div className="xl:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100">
-          <div className="p-5 border-b flex items-center justify-between">
-            <h2 className="font-semibold text-slate-800">Latest orders</h2>
-            <Link to="/orders" className="text-sm text-amber-700 hover:underline">View all</Link>
-          </div>
-          <div className="divide-y">
-            {recentSales.length === 0 && <p className="p-5 text-sm text-gray-500">No sales yet</p>}
-            {recentSales.map((sale) => (
-              <div key={sale._id} className="px-5 py-4 flex items-center justify-between gap-3">
-                <div>
-                  <p className="font-medium text-slate-800">{sale.customerName || 'Walk-in'}</p>
-                  <p className="text-xs text-gray-500">{sale.transactionId} · {String(sale.date).slice(0, 10)}</p>
-                </div>
-                <div className="text-right text-sm">
-                  <p className="font-semibold">ETB {Number(sale.totalAmount || 0).toLocaleString()}</p>
-                  <p className="text-xs text-teal-700">First {Number(sale.firstPayment || 0).toLocaleString()}</p>
-                  <p className="text-xs text-amber-600">
-                    {sale.restPaid || Number(sale.restPayment || 0) === 0
-                      ? 'Rest paid'
-                      : `Rest ${Number(sale.restPayment || 0).toLocaleString()}`}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="bg-slate-950 text-white rounded-2xl p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <FiShield className="text-amber-400" />
-            <h2 className="font-semibold">Pending users</h2>
-          </div>
-          {pendingUsers.length === 0 ? (
-            <p className="text-sm text-slate-400">No role requests waiting.</p>
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-5">
+        <Panel
+          className="xl:col-span-2"
+          title="Latest orders"
+          action={
+            <Link to="/orders" className="text-xs text-teal-700 hover:underline">
+              View all
+            </Link>
+          }
+          bodyClassName="!p-0"
+        >
+          {recentSales.length === 0 ? (
+            <EmptyState>No sales yet</EmptyState>
           ) : (
-            <div className="space-y-3">
-              {pendingUsers.slice(0, 4).map((user) => (
-                <div key={user.id} className="rounded-xl bg-white/5 p-3">
-                  <p className="font-medium">{user.fullName || user.username}</p>
-                  <p className="text-xs text-slate-400">Wants {roleLabel(user.requestedRole || 'staff')}</p>
+            <div className="divide-y divide-slate-100">
+              {recentSales.map((sale) => (
+                <div key={sale._id} className="px-3 sm:px-4 py-3 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-slate-800 truncate">{sale.customerName || 'Walk-in'}</p>
+                    <p className="text-[10px] sm:text-xs text-slate-500">
+                      {sale.transactionId} · {String(sale.date).slice(0, 10)}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-sm font-semibold text-slate-800">
+                      ETB {Number(sale.totalAmount || 0).toLocaleString()}
+                    </p>
+                    <p className="text-[10px] text-teal-700">
+                      First {Number(sale.firstPayment || 0).toLocaleString()}
+                    </p>
+                    <p className="text-[10px] text-amber-600">
+                      {sale.restPaid || Number(sale.restPayment || 0) === 0
+                        ? 'Rest paid'
+                        : `Rest ${Number(sale.restPayment || 0).toLocaleString()}`}
+                    </p>
+                  </div>
                 </div>
               ))}
-              <Link to="/users" className="block text-center text-sm text-amber-300 hover:text-amber-200">
-                Review accounts
-              </Link>
             </div>
           )}
-        </div>
+        </Panel>
+
+        <Panel
+          title={
+            <span className="inline-flex items-center gap-1.5">
+              <FiShield className="text-teal-600" size={14} />
+              Pending users
+            </span>
+          }
+          action={
+            <Link to="/users" className="text-xs text-teal-700 hover:underline">
+              Review
+            </Link>
+          }
+        >
+          {pendingUsers.length === 0 ? (
+            <EmptyState>No role requests waiting.</EmptyState>
+          ) : (
+            <div className="space-y-2">
+              {pendingUsers.slice(0, 4).map((user) => (
+                <div key={user.id} className="rounded-xl bg-slate-50 border border-slate-100 px-3 py-2">
+                  <p className="text-sm font-medium text-slate-800">{user.fullName || user.username}</p>
+                  <p className="text-[10px] text-slate-500">
+                    Wants {roleLabel(user.requestedRole || 'staff')}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </Panel>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100">
-        <div className="p-4 sm:p-6 border-b">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
-            <h2 className="text-lg sm:text-xl font-semibold">Warehouse inventory</h2>
-            {canCreate && (
-              <Link
-                to="/management"
-                className="bg-slate-950 text-white px-4 py-2 rounded-lg hover:bg-slate-800 text-sm flex items-center justify-center"
-              >
-                <FiPackage className="mr-2" /> Add Product
-              </Link>
-            )}
-          </div>
-          <input
-            type="text"
-            placeholder="Search by Name, Product ID, Category..."
-            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+      <Panel
+        title="Warehouse inventory"
+        action={
+          canCreate ? (
+            <Link
+              to="/management"
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-teal-700 text-white hover:bg-teal-800"
+            >
+              <FiPackage size={12} /> Add Product
+            </Link>
+          ) : null
+        }
+      >
+        <div className="mb-3">
+          <SearchInput
             value={searchTerm}
             onChange={(e) => {
               setSearchTerm(e.target.value);
               setCurrentPage(1);
             }}
+            placeholder="Search by Name, Product ID, Category..."
           />
         </div>
 
         {paginatedProducts.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px]">
+          <div className="overflow-x-auto -mx-3 sm:-mx-4">
+            <table className="w-full min-w-[720px] text-sm">
               <thead className="bg-slate-50">
-                <tr>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">No.</th>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Product Name</th>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stock</th>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Restock</th>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Unit</th>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                <tr className="text-left text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wide">
+                  <th className="px-3 sm:px-4 py-2.5">No.</th>
+                  <th className="px-3 sm:px-4 py-2.5">ID</th>
+                  <th className="px-3 sm:px-4 py-2.5">Category</th>
+                  <th className="px-3 sm:px-4 py-2.5">Product Name</th>
+                  <th className="px-3 sm:px-4 py-2.5">Price</th>
+                  <th className="px-3 sm:px-4 py-2.5">Stock</th>
+                  <th className="px-3 sm:px-4 py-2.5">Restock</th>
+                  <th className="px-3 sm:px-4 py-2.5">Unit</th>
+                  <th className="px-3 sm:px-4 py-2.5">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-slate-100">
                 {paginatedProducts.map((product, index) => (
-                  <tr key={product._id} className="hover:bg-slate-50">
-                    <td className="px-4 sm:px-6 py-4">{(currentPage - 1) * itemsPerPage + index + 1}</td>
-                    <td className="px-4 sm:px-6 py-4">{product.productId}</td>
-                    <td className="px-4 sm:px-6 py-4">{product.category}</td>
-                    <td className="px-4 sm:px-6 py-4 font-medium">{product.name}</td>
-                    <td className="px-4 sm:px-6 py-4">ETB {Number(product.price || 0).toLocaleString()}</td>
-                    <td className="px-4 sm:px-6 py-4">
-                      <span className={`px-2 py-1 text-xs rounded-full ${
-                        Number(product.stock) <= Number(product.restockLevel)
-                          ? 'bg-red-100 text-red-800'
-                          : 'bg-green-100 text-green-800'
-                      }`}>
+                  <tr key={product._id} className="hover:bg-teal-50/40">
+                    <td className="px-3 sm:px-4 py-2.5 text-slate-500">
+                      {(currentPage - 1) * itemsPerPage + index + 1}
+                    </td>
+                    <td className="px-3 sm:px-4 py-2.5">{product.productId}</td>
+                    <td className="px-3 sm:px-4 py-2.5">{product.category}</td>
+                    <td className="px-3 sm:px-4 py-2.5 font-medium text-slate-800">{product.name}</td>
+                    <td className="px-3 sm:px-4 py-2.5">ETB {Number(product.price || 0).toLocaleString()}</td>
+                    <td className="px-3 sm:px-4 py-2.5">
+                      <span
+                        className={`px-2 py-0.5 text-[10px] rounded-full font-medium ${
+                          Number(product.stock) <= Number(product.restockLevel)
+                            ? 'bg-rose-100 text-rose-800'
+                            : 'bg-emerald-100 text-emerald-800'
+                        }`}
+                      >
                         {product.stock}
                       </span>
                     </td>
-                    <td className="px-4 sm:px-6 py-4">{product.restockLevel}</td>
-                    <td className="px-4 sm:px-6 py-4">{product.unit}</td>
-                    <td className="px-4 sm:px-6 py-4">
-                      <div className="flex space-x-2">
+                    <td className="px-3 sm:px-4 py-2.5">{product.restockLevel}</td>
+                    <td className="px-3 sm:px-4 py-2.5">{product.unit}</td>
+                    <td className="px-3 sm:px-4 py-2.5">
+                      <div className="flex gap-1">
                         <button
                           type="button"
-                          className="text-blue-600 hover:text-blue-800"
+                          className="p-1.5 rounded-lg text-sky-600 hover:bg-sky-50"
                           title="View details"
                           onClick={() => navigate(`/inventory?view=${product._id}`)}
                         >
-                          <FiEye size={18} />
+                          <FiEye size={14} />
                         </button>
                         {canEdit && (
                           <button
                             type="button"
-                            className="text-green-600 hover:text-green-800"
+                            className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50"
                             title="Edit product"
                             onClick={() => navigate(`/inventory?edit=${product._id}`)}
                           >
-                            <FiEdit size={18} />
+                            <FiEdit size={14} />
                           </button>
                         )}
                         {canDelete && (
                           <button
                             type="button"
-                            className="text-red-600 hover:text-red-800"
+                            className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50"
                             title="Delete product"
                             onClick={() => handleDelete(product._id, product.name)}
                           >
-                            <FiTrash2 size={18} />
+                            <FiTrash2 size={14} />
                           </button>
                         )}
                       </div>
@@ -339,53 +365,50 @@ const Dashboard = () => {
             </table>
           </div>
         ) : (
-          <div className="text-center py-12 text-gray-500 px-4">
-            <FiPackage size={48} className="mx-auto mb-4 text-gray-300" />
-            <p>No products found</p>
-            <Link to="/management" className="text-blue-500 hover:underline mt-2 inline-block">
+          <EmptyState>
+            No products found.{' '}
+            <Link to="/management" className="text-teal-700 hover:underline">
               Add your first product
             </Link>
-          </div>
+          </EmptyState>
         )}
 
         {filteredProducts.length > 0 && (
-          <div className="px-4 sm:px-6 py-4 border-t flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
-            <p className="text-sm text-gray-500">
+          <div className="mt-3 pt-3 border-t border-slate-100 flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
+            <p className="text-xs text-slate-500">
               Showing {paginatedProducts.length} of {filteredProducts.length} products
             </p>
-            <div className="flex space-x-2">
-              <button
-                type="button"
+            <div className="flex gap-1.5">
+              <SoftButton
                 onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                 disabled={currentPage === 1}
-                className={`px-3 py-1 border rounded ${
+                className={`border ${
                   currentPage === 1
-                    ? 'text-gray-300 cursor-not-allowed'
-                    : 'text-gray-600 hover:bg-gray-50'
+                    ? 'text-slate-300 border-slate-100 cursor-not-allowed'
+                    : 'text-slate-600 border-slate-200 hover:bg-slate-50'
                 }`}
               >
                 Previous
-              </button>
-              <span className="px-3 py-1 text-sm">
+              </SoftButton>
+              <span className="px-2 py-1.5 text-xs text-slate-600">
                 Page {currentPage} of {totalPages}
               </span>
-              <button
-                type="button"
+              <SoftButton
                 onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
                 disabled={currentPage === totalPages}
-                className={`px-3 py-1 border rounded ${
+                className={`border ${
                   currentPage === totalPages
-                    ? 'text-gray-300 cursor-not-allowed'
-                    : 'text-gray-600 hover:bg-gray-50'
+                    ? 'text-slate-300 border-slate-100 cursor-not-allowed'
+                    : 'text-slate-600 border-slate-200 hover:bg-slate-50'
                 }`}
               >
                 Next
-              </button>
+              </SoftButton>
             </div>
           </div>
         )}
-      </div>
-    </div>
+      </Panel>
+    </PageShell>
   );
 };
 

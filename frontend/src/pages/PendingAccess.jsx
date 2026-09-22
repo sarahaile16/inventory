@@ -1,6 +1,7 @@
 import React from 'react';
 import { FiClock, FiLogOut, FiShield } from 'react-icons/fi';
 import { getStoredUser, roleLabel } from '../auth/roles';
+import { PageShell, PageHero, Panel, SoftButton } from '../components/ui/PageChrome';
 
 const PendingAccess = () => {
   const user = getStoredUser() || {};
@@ -13,36 +14,42 @@ const PendingAccess = () => {
   };
 
   return (
-    <div className="min-h-[70vh] flex items-center justify-center p-4 sm:p-8">
-      <div className="max-w-xl w-full bg-white rounded-3xl shadow-xl overflow-hidden">
-        <div className="bg-gradient-to-r from-amber-500 to-orange-500 p-8 text-white">
-          <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center mb-4">
-            <FiClock size={28} />
+    <PageShell className="flex items-center justify-center min-h-[70vh]">
+      <div className="w-full max-w-lg">
+        <PageHero
+          tone="amber"
+          eyebrow="Account created"
+          title="Waiting for admin approval"
+          subtitle={
+            <>
+              Hi <span className="font-semibold">{user.fullName || user.username || 'there'}</span>.
+              Your account is currently a User. You asked for {requested} access.
+            </>
+          }
+          actions={
+            <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+              <FiClock size={20} />
+            </div>
+          }
+        />
+
+        <Panel>
+          <div className="rounded-xl bg-amber-50 border border-amber-100 p-3 text-xs text-amber-900 flex gap-2">
+            <FiShield className="mt-0.5 shrink-0" size={14} />
+            <p>
+              An admin will review this request and assign Staff, Management, or keep you as User.
+              After approval, log in again to open store, orders, and customers.
+            </p>
           </div>
-          <p className="text-amber-100 text-sm uppercase tracking-wide">Account created</p>
-          <h1 className="text-3xl font-bold mt-1">Waiting for admin approval</h1>
-        </div>
-        <div className="p-8 space-y-4">
-          <p className="text-gray-600">
-            Hi <span className="font-semibold text-gray-900">{user.fullName || user.username || 'there'}</span>.
-            Your account is currently a <span className="font-semibold">User</span>.
-            You asked for <span className="font-semibold">{requested}</span> access.
-          </p>
-          <div className="rounded-2xl bg-amber-50 border border-amber-100 p-4 text-sm text-amber-900 flex gap-3">
-            <FiShield className="mt-0.5 shrink-0" />
-            An admin will review this request and assign Staff, Management, or keep you as User.
-            After approval, log in again to open store, orders, and customers.
-          </div>
-          <button
-            type="button"
+          <SoftButton
             onClick={handleLogout}
-            className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-slate-900 text-white hover:bg-slate-800"
+            className="w-full mt-4 py-2.5 bg-slate-800 text-white hover:bg-slate-700"
           >
-            <FiLogOut /> Back to login
-          </button>
-        </div>
+            <FiLogOut size={14} /> Back to login
+          </SoftButton>
+        </Panel>
       </div>
-    </div>
+    </PageShell>
   );
 };
 

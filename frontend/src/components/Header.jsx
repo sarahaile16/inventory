@@ -21,6 +21,7 @@ const Header = ({ sidebarOpen, onToggleSidebar }) => {
     if (path === '/orders') return 'Orders';
     if (path === '/management') return 'Add Product';
     if (path === '/inventory') return 'Warehouse Inventory';
+    if (path === '/raw-materials') return 'Raw Materials';
     if (path === '/customers') return 'Customers';
     if (path.startsWith('/customers/')) return 'Customer Details';
     if (path === '/analytics' || path === '/report') return 'Report';
@@ -43,9 +44,9 @@ const Header = ({ sidebarOpen, onToggleSidebar }) => {
   }, [location.pathname, user.role]);
 
   return (
-    <header className="bg-white shadow-sm">
-      <div className="px-4 sm:px-6 py-4 flex justify-between items-center gap-3">
-        <div className="flex items-center gap-3 min-w-0">
+    <header className="bg-white shadow-sm sticky top-0 z-20">
+      <div className="px-3 sm:px-5 py-2.5 sm:py-3 flex justify-between items-center gap-2">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <button
             type="button"
             onClick={onToggleSidebar}
@@ -53,9 +54,9 @@ const Header = ({ sidebarOpen, onToggleSidebar }) => {
             aria-label={sidebarOpen ? 'Hide sidebar' : 'Open sidebar'}
             title={sidebarOpen ? 'Hide sidebar' : 'Open sidebar'}
           >
-            <FiMenu size={22} />
+            <FiMenu size={20} />
           </button>
-          <h1 className="text-lg sm:text-2xl font-semibold text-gray-800 truncate">{getPageTitle()}</h1>
+          <h1 className="text-sm sm:text-lg font-semibold text-gray-800 truncate">{getPageTitle()}</h1>
         </div>
         
         <div className="flex items-center space-x-2 sm:space-x-4 shrink-0">

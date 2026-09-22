@@ -1,23 +1,29 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
-import { 
-  FiArrowLeft, FiPhone, FiMail, FiCalendar, 
-  FiDollarSign, FiPackage, FiDownload, FiPrinter,
+import {
+  FiArrowLeft, FiPhone, FiMail, FiCalendar,
+  FiDollarSign, FiPackage, FiDownload,
   FiChevronLeft, FiChevronRight, FiClock, FiUpload,
   FiCheckCircle, FiXCircle, FiAlertCircle, FiEdit,
   FiSave, FiPlus, FiMapPin, FiBriefcase, FiTag,
   FiUser, FiFileText, FiTrash2, FiX
 } from 'react-icons/fi';
-import { canSeeMoney } from '../auth/roles';
+import { canSeeMoney, canSeeCustomerContact } from '../auth/roles';
 
 const CustomerDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [customer, setCustomer] = useState(null);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState(() => {
+    const tab = searchParams.get('tab');
+    return tab === 'orders' || tab === 'payments' || tab === 'files' ? tab : 'overview';
+  });
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
+  const [loadError, setLoadError] = useState('');
   const [showAddPaymentModal, setShowAddPaymentModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -34,9 +40,10 @@ const CustomerDetails = () => {
     transactionId: '',
     description: ''
   });
-  
+
   const itemsPerPage = 5;
   const showMoney = canSeeMoney();
+  const showContact = canSeeCustomerContact();
 
   useEffect(() => {
     fetchCustomerDetails();
@@ -45,17 +52,26 @@ const CustomerDetails = () => {
   const fetchCustomerDetails = async () => {
     try {
       setLoading(true);
-      console.log('🔍 Fetching customer ID:', id);
-      
+      setLoadError('');
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
       const response = await axios.get(`${API_URL}/customers/${id}`);
-      console.log('✅ Customer data:', response.data);
-      
       setCustomer(response.data);
       setEditFormData(response.data);
       setUploadedFiles(Array.isArray(response.data.documents) ? response.data.documents : []);
     } catch (error) {
-      console.error('❌ Error fetching customer:', error);
+      console.error('Error fetching customer:', error);
+      setCustomer(null);
+      const status = error.response?.status;
+      const apiMessage = error.response?.data?.message;
+      if (status === 404) {
+        setLoadError(
+          `Customer #${id} was not found on the server. Refresh the customers list and try again (the server may have restarted).`
+        );
+      } else if (status === 401) {
+        setLoadError('Please log in again to view this customer.');
+      } else {
+        setLoadError(apiMessage || error.message || 'Could not load customer details.');
+      }
     } finally {
       setLoading(false);
     }
@@ -66,15 +82,12 @@ const CustomerDetails = () => {
       alert('Please enter payment amount');
       return;
     }
-
     try {
       const paymentData = {
         ...newPayment,
         amount: parseFloat(newPayment.amount),
         date: newPayment.date || new Date().toISOString().split('T')[0]
       };
-
-      // Update local state
       const updatedCustomer = {
         ...customer,
         totalSpent: (customer.totalSpent || 0) + paymentData.amount,
@@ -92,7 +105,6 @@ const CustomerDetails = () => {
           }
         ]
       };
-      
       setCustomer(updatedCustomer);
       setShowAddPaymentModal(false);
       setNewPayment({
@@ -102,7 +114,6 @@ const CustomerDetails = () => {
         transactionId: '',
         description: ''
       });
-      
       alert('Payment added successfully!');
     } catch (error) {
       console.error('Error adding payment:', error);
@@ -115,12 +126,10 @@ const CustomerDetails = () => {
       alert('Please select a file');
       return;
     }
-
     if (selectedFile.size > 2 * 1024 * 1024) {
       alert('Please choose a file smaller than 2MB');
       return;
     }
-
     setUploading(true);
     try {
       const reader = new FileReader();
@@ -129,10 +138,8 @@ const CustomerDetails = () => {
         reader.onerror = reject;
         reader.readAsDataURL(selectedFile);
       });
-
       const isImage = selectedFile.type.startsWith('image/');
       const type = uploadType || (isImage ? 'order' : 'other');
-
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
       const response = await axios.post(`${API_URL}/customers/${id}/documents`, {
         name: selectedFile.name,
@@ -140,7 +147,6 @@ const CustomerDetails = () => {
         size: `${(selectedFile.size / 1024).toFixed(2)} KB`,
         url: dataUrl
       });
-
       setUploadedFiles(response.data.documents || []);
       if (type === 'payment') {
         setCustomer((current) => current ? { ...current, paymentPhoto: dataUrl, documents: response.data.documents } : current);
@@ -149,7 +155,6 @@ const CustomerDetails = () => {
       } else {
         setCustomer((current) => current ? { ...current, documents: response.data.documents } : current);
       }
-
       alert('File uploaded successfully!');
       setShowUploadModal(false);
       setSelectedFile(null);
@@ -164,7 +169,6 @@ const CustomerDetails = () => {
 
   const handleDeleteFile = async (fileId) => {
     if (!window.confirm('Are you sure you want to delete this file?')) return;
-
     try {
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
       const response = await axios.delete(`${API_URL}/customers/${id}/documents/${fileId}`);
@@ -178,12 +182,7 @@ const CustomerDetails = () => {
 
   const handleUpdateCustomer = async () => {
     try {
-      const updatedCustomer = {
-        ...customer,
-        ...editFormData
-      };
-      
-      setCustomer(updatedCustomer);
+      setCustomer({ ...customer, ...editFormData });
       setShowEditModal(false);
       alert('Customer updated successfully!');
     } catch (error) {
@@ -194,10 +193,6 @@ const CustomerDetails = () => {
 
   const handleDeleteCustomer = async () => {
     try {
-      // In real app, call API to delete
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
-      // await axios.delete(`${API_URL}/customers/${id}`);
-      
       alert('Customer deleted successfully!');
       navigate('/customers');
     } catch (error) {
@@ -208,39 +203,34 @@ const CustomerDetails = () => {
 
   const handleDeletePayment = (paymentId) => {
     if (window.confirm('Are you sure you want to delete this payment?')) {
-      const updatedPurchases = customer.purchaseHistory.filter(p => p._id !== paymentId);
-      const updatedCustomer = {
+      const updatedPurchases = customer.purchaseHistory.filter((p) => p._id !== paymentId);
+      setCustomer({
         ...customer,
         purchaseHistory: updatedPurchases,
         totalPurchases: updatedPurchases.length,
         totalSpent: updatedPurchases.reduce((sum, p) => sum + p.amount, 0)
-      };
-      setCustomer(updatedCustomer);
+      });
     }
   };
 
-  const updateOrderStatus = async (status) => {
-    try {
-      const updatedCustomer = {
-        ...customer,
-        orderStatus: status
-      };
-      setCustomer(updatedCustomer);
-      alert(`Order status updated to ${status}`);
-    } catch (error) {
-      console.error('Error updating status:', error);
-    }
+  const updateOrderStatus = (status) => {
+    setCustomer({ ...customer, orderStatus: status });
+    alert(`Order status updated to ${status}`);
   };
 
-  // Pagination for purchase history
   const purchaseHistory = customer?.purchaseHistory || [];
+  const customerOrders = customer?.orders || [];
+  const selectedOrder =
+    customerOrders.find((o) => o._id === selectedOrderId) ||
+    customerOrders[customerOrders.length - 1] ||
+    null;
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentPurchases = purchaseHistory.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(purchaseHistory.length / itemsPerPage);
+  const totalPages = Math.ceil(purchaseHistory.length / itemsPerPage) || 1;
 
   const formatCurrency = (amount) => {
-    if (!amount) return '0.00';
+    if (!amount && amount !== 0) return '0.00';
     return new Intl.NumberFormat('en-US', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
@@ -248,381 +238,334 @@ const CustomerDetails = () => {
   };
 
   const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
+    if (!dateString) return '—';
     const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return String(dateString).slice(0, 10);
     return date.toLocaleDateString('en-US', {
       month: '2-digit',
       day: '2-digit',
       year: 'numeric'
-    }).replace(/\//g, '/');
+    });
   };
 
   const getStatusBadge = (status) => {
-    switch(status?.toLowerCase()) {
+    const base = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium';
+    switch (String(status || '').toLowerCase()) {
       case 'completed':
-        return <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs flex items-center"><FiCheckCircle className="mr-1" size={12} /> Completed</span>;
+        return <span className={`${base} bg-emerald-100 text-emerald-800`}><FiCheckCircle size={10} /> Completed</span>;
       case 'pending':
-        return <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs flex items-center"><FiClock className="mr-1" size={12} /> Pending</span>;
+        return <span className={`${base} bg-amber-100 text-amber-800`}><FiClock size={10} /> Pending</span>;
       case 'processing':
-        return <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs flex items-center"><FiAlertCircle className="mr-1" size={12} /> Processing</span>;
+        return <span className={`${base} bg-sky-100 text-sky-800`}><FiAlertCircle size={10} /> Processing</span>;
       case 'cancelled':
-        return <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs flex items-center"><FiXCircle className="mr-1" size={12} /> Cancelled</span>;
+        return <span className={`${base} bg-rose-100 text-rose-800`}><FiXCircle size={10} /> Cancelled</span>;
       default:
-        return <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs">{status || 'N/A'}</span>;
+        return <span className={`${base} bg-slate-100 text-slate-700`}>{status || 'N/A'}</span>;
     }
   };
 
+  const infoChip = (icon, label, value) => (
+    <div className="rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2.5 min-w-0">
+      <p className="text-[10px] uppercase tracking-wide text-slate-500 flex items-center gap-1 mb-0.5">
+        {icon}
+        {label}
+      </p>
+      <p className="text-sm font-semibold text-slate-800 truncate" title={value}>{value || '—'}</p>
+    </div>
+  );
+
+  const modalShell = (children) => (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div className="absolute inset-0 bg-slate-950/55 backdrop-blur-sm" onClick={() => {
+        setShowEditModal(false);
+        setShowDeleteConfirm(false);
+        setShowAddPaymentModal(false);
+        setShowUploadModal(false);
+      }} />
+      {children}
+    </div>
+  );
+
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      <div className="flex justify-center items-center min-h-[50vh] p-4">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-teal-600" />
       </div>
     );
   }
 
   if (!customer) {
     return (
-      <div className="p-6">
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-          Customer not found
+      <div className="p-4 sm:p-6 max-w-lg mx-auto">
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 space-y-3">
+          <p className="font-semibold">Customer not found</p>
+          <p className="text-rose-700/90">{loadError || `No customer with id ${id}.`}</p>
+          <button
+            type="button"
+            onClick={() => navigate('/customers')}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-700 text-white text-xs font-semibold hover:bg-teal-800"
+          >
+            <FiArrowLeft size={12} /> Back to customers
+          </button>
         </div>
       </div>
     );
   }
 
+  const tabs = [
+    { id: 'overview', label: 'Overview' },
+    { id: 'payments', label: 'Payments' },
+    { id: 'orders', label: `Orders${customerOrders.length ? ` (${customerOrders.length})` : ''}` },
+    { id: 'files', label: 'Files' }
+  ];
+
   return (
-    <div className="p-6 bg-gray-100 min-h-screen">
-      {/* Header with Back Button and Actions */}
-      <div className="mb-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+    <div className="p-3 sm:p-5 lg:p-6 max-w-6xl mx-auto w-full min-w-0">
+      {/* Top bar */}
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <button
-          onClick={() => navigate(-1)}
-          className="flex items-center text-gray-600 hover:text-gray-800"
+          type="button"
+          onClick={() => navigate('/customers')}
+          className="inline-flex items-center text-xs sm:text-sm text-slate-600 hover:text-teal-800 w-fit"
         >
-          <FiArrowLeft className="mr-2" /> Back to Customers
+          <FiArrowLeft className="mr-1.5" size={14} /> Back to customers
         </button>
-        
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => setShowEditModal(true)}
-            className="flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-          >
-            <FiEdit className="mr-2" /> Edit
+        <div className="flex flex-wrap gap-1.5">
+          <button type="button" onClick={() => setShowEditModal(true)} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-sky-600 text-white text-xs hover:bg-sky-700">
+            <FiEdit size={12} /> Edit
           </button>
-          <button
-            onClick={() => setShowDeleteConfirm(true)}
-            className="flex items-center px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
-          >
-            <FiTrash2 className="mr-2" /> Delete
+          <button type="button" onClick={() => setShowDeleteConfirm(true)} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-rose-600 text-white text-xs hover:bg-rose-700">
+            <FiTrash2 size={12} /> Delete
           </button>
           {showMoney && (
-            <button
-              onClick={() => setShowAddPaymentModal(true)}
-              className="flex items-center px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
-            >
-              <FiPlus className="mr-2" /> Add Payment
+            <button type="button" onClick={() => setShowAddPaymentModal(true)} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-600 text-white text-xs hover:bg-emerald-700">
+              <FiPlus size={12} /> Payment
             </button>
           )}
-          <button
-            onClick={() => setShowUploadModal(true)}
-            className="flex items-center px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600"
-          >
-            <FiUpload className="mr-2" /> Upload
+          <button type="button" onClick={() => setShowUploadModal(true)} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-teal-700 text-white text-xs hover:bg-teal-800">
+            <FiUpload size={12} /> Upload
           </button>
         </div>
       </div>
 
-      {/* Customer Information Card */}
-      <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <div className="flex justify-between items-start mb-4">
-          <h2 className="text-xl font-bold text-gray-800 flex items-center">
-            <FiUser className="mr-2 text-blue-500" />
-            Customer Information
-          </h2>
+      {/* Hero card */}
+      <section className="rounded-2xl overflow-hidden border border-teal-100 bg-white shadow-sm mb-4">
+        <div className="bg-gradient-to-r from-teal-700 to-emerald-600 px-4 py-3 sm:px-5 sm:py-4 text-white flex flex-wrap items-center justify-between gap-2">
+          <div className="min-w-0">
+            <p className="text-[10px] uppercase tracking-[0.16em] text-teal-100">Customer</p>
+            <h1 className="text-base sm:text-lg font-bold truncate">{customer.fullName}</h1>
+            {customer.orderDescription && (
+              <p className="text-xs text-teal-50/90 mt-0.5 truncate">{customer.orderDescription}</p>
+            )}
+          </div>
           {customer.orderStatus && getStatusBadge(customer.orderStatus)}
         </div>
-        
-        {(customer.orderPhoto || customer.paymentPhoto) && (
-          <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {customer.orderPhoto && (
-              <div>
-                <p className="text-gray-500 text-xs mb-2">Order photo</p>
-                <img src={customer.orderPhoto} alt="Order" className="h-40 w-full rounded-xl border object-cover" />
-              </div>
-            )}
-            {customer.paymentPhoto && (
-              <div>
-                <p className="text-gray-500 text-xs mb-2">Payment proof</p>
-                <img src={customer.paymentPhoto} alt="Payment proof" className="h-40 w-full rounded-xl border object-cover" />
-              </div>
-            )}
-          </div>
-        )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div className="bg-gray-50 p-3 rounded-lg">
-            <p className="text-gray-500 text-xs flex items-center"><FiUser className="mr-1" size={12} /> Full Name</p>
-            <p className="font-medium text-lg">{customer.fullName}</p>
-          </div>
-          
-          <div className="bg-gray-50 p-3 rounded-lg">
-            <p className="text-gray-500 text-xs flex items-center"><FiPhone className="mr-1" size={12} /> Phone Number</p>
-            <p className="font-medium text-lg">{customer.phoneNumber}</p>
-          </div>
-          
-          {customer.organization && (
-            <div className="bg-gray-50 p-3 rounded-lg">
-              <p className="text-gray-500 text-xs flex items-center"><FiBriefcase className="mr-1" size={12} /> Organization</p>
-              <p className="font-medium text-lg">{customer.organization}</p>
-            </div>
-          )}
-          
-          {customer.email && (
-            <div className="bg-gray-50 p-3 rounded-lg">
-              <p className="text-gray-500 text-xs flex items-center"><FiMail className="mr-1" size={12} /> Email</p>
-              <p className="font-medium text-lg">{customer.email}</p>
-            </div>
-          )}
-          
-          {customer.address && (
-            <div className="bg-gray-50 p-3 rounded-lg">
-              <p className="text-gray-500 text-xs flex items-center"><FiMapPin className="mr-1" size={12} /> Address</p>
-              <p className="font-medium text-lg">{customer.address}</p>
-            </div>
-          )}
-          
-          <div className="bg-gray-50 p-3 rounded-lg">
-            <p className="text-gray-500 text-xs flex items-center"><FiTag className="mr-1" size={12} /> Customer Type</p>
-            <p className="font-medium text-lg">{customer.customerType || 'Regular'}</p>
-          </div>
-          
-          <div className="bg-gray-50 p-3 rounded-lg">
-            <p className="text-gray-500 text-xs flex items-center"><FiCalendar className="mr-1" size={12} /> Member Since</p>
-            <p className="font-medium text-lg">{formatDate(customer.createdAt)}</p>
-          </div>
-        </div>
-
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-          {showMoney ? (
-            <div className="bg-green-50 p-4 rounded-lg">
-              <p className="text-green-600 text-sm font-medium">Whole / first / rest</p>
-              <p className="text-lg font-bold text-green-700">ETB {formatCurrency(customer.wholePayment || customer.totalSpent)}</p>
-              <p className="text-xs text-teal-700 mt-1">First ETB {formatCurrency(customer.firstPayment)}</p>
-              <p className="text-xs text-amber-700">
-                {customer.restPaid ? 'Rest paid' : `Rest ETB ${formatCurrency(customer.restPayment)}`}
-              </p>
-            </div>
-          ) : (
-            <div className="bg-amber-50 p-4 rounded-lg">
-              <p className="text-amber-700 text-sm font-medium">Order deadline</p>
-              <p className="text-2xl font-bold text-amber-800">
-                {customer.orderDeadline ? formatDate(customer.orderDeadline) : 'Not set'}
-              </p>
-              <p className="text-xs mt-1">{customer.restPaid ? 'Paid in full' : 'Rest due on delivery'}</p>
-            </div>
-          )}
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <p className="text-blue-600 text-sm font-medium">Total Purchases</p>
-            <p className="text-2xl font-bold text-blue-700">{customer.totalPurchases || 0}</p>
-          </div>
-          <div className="bg-purple-50 p-4 rounded-lg">
-            <p className="text-purple-600 text-sm font-medium">Last Purchase</p>
-            <p className="text-2xl font-bold text-purple-700">{formatDate(customer.lastPurchaseDate) || 'N/A'}</p>
-          </div>
-        </div>
-
-        {/* Order Information with Deadline */}
-        {(customer.orderDescription || customer.orderDeadline || !showMoney) && (
-          <div className="mt-6 border-t pt-4">
-            <h3 className="text-lg font-semibold mb-3 flex items-center">
-              <FiPackage className="mr-2 text-orange-500" />
-              Order Information
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {customer.orderDescription && (
+        <div className="p-3 sm:p-4 space-y-3">
+          {(customer.orderPhoto || (showMoney && customer.paymentPhoto)) && (
+            <div className="grid grid-cols-2 gap-2 sm:gap-3">
+              {customer.orderPhoto && (
                 <div>
-                  <p className="text-gray-500 text-sm">Order Description</p>
-                  <p className="font-medium p-2 bg-orange-50 rounded-lg">{customer.orderDescription}</p>
+                  <p className="text-[10px] text-slate-500 mb-1">Order photo</p>
+                  <img src={customer.orderPhoto} alt="Order" className="h-24 sm:h-32 w-full rounded-xl border object-cover" />
                 </div>
               )}
-              {customer.orderDeadline && (
+              {showMoney && customer.paymentPhoto && (
                 <div>
-                  <p className="text-gray-500 text-sm flex items-center">
-                    <FiClock className="mr-1" size={14} /> Deadline
-                  </p>
-                  <div className="flex items-center justify-between p-2 rounded-lg bg-orange-50">
-                    <span className={`font-medium ${
-                      new Date(customer.orderDeadline) < new Date() 
-                        ? 'text-red-600' 
-                        : 'text-green-600'
-                    }`}>
-                      {formatDate(customer.orderDeadline)}
-                      {new Date(customer.orderDeadline) < new Date() && ' (Overdue)'}
-                    </span>
-                    <button
-                      onClick={() => {
-                        const newDeadline = prompt('Enter new deadline (YYYY-MM-DD):', customer.orderDeadline);
-                        if (newDeadline) {
-                          setCustomer({...customer, orderDeadline: newDeadline});
-                        }
-                      }}
-                      className="text-blue-500 hover:text-blue-700"
-                    >
-                      <FiEdit size={16} />
-                    </button>
+                  <p className="text-[10px] text-slate-500 mb-1">Payment proof</p>
+                  <img src={customer.paymentPhoto} alt="Payment" className="h-24 sm:h-32 w-full rounded-xl border object-cover" />
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {infoChip(<FiUser size={10} />, 'Full name', customer.fullName)}
+            {showContact && infoChip(<FiPhone size={10} />, 'Phone', customer.phoneNumber)}
+            {infoChip(<FiBriefcase size={10} />, 'Organization', customer.organization || 'Individual')}
+            {showContact && customer.email && infoChip(<FiMail size={10} />, 'Email', customer.email)}
+            {showContact && customer.address && infoChip(<FiMapPin size={10} />, 'Address', customer.address)}
+            {infoChip(<FiTag size={10} />, 'Type', customer.customerType || 'Regular')}
+            {infoChip(<FiCalendar size={10} />, 'Member since', formatDate(customer.createdAt))}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            {showMoney ? (
+              <div className="rounded-xl bg-emerald-50 border border-emerald-100 px-3 py-2.5">
+                <p className="text-[10px] font-medium text-emerald-700 uppercase tracking-wide">Payment</p>
+                <p className="text-sm font-bold text-emerald-800 mt-0.5">ETB {formatCurrency(customer.wholePayment || customer.totalSpent)}</p>
+                <p className="text-[11px] text-teal-700">First {formatCurrency(customer.firstPayment)}</p>
+                <p className="text-[11px] text-amber-700">{customer.restPaid ? 'Rest paid' : `Rest ${formatCurrency(customer.restPayment)}`}</p>
+              </div>
+            ) : (
+              <div className="rounded-xl bg-amber-50 border border-amber-100 px-3 py-2.5">
+                <p className="text-[10px] font-medium text-amber-700 uppercase tracking-wide">Deadline</p>
+                <p className="text-sm font-bold text-amber-900 mt-0.5">{customer.orderDeadline ? formatDate(customer.orderDeadline) : 'Not set'}</p>
+                <p className="text-[11px] text-amber-800/80">{customer.restPaid ? 'Paid in full' : 'Rest due on delivery'}</p>
+              </div>
+            )}
+            <div className="rounded-xl bg-sky-50 border border-sky-100 px-3 py-2.5">
+              <p className="text-[10px] font-medium text-sky-700 uppercase tracking-wide">Purchases</p>
+              <p className="text-sm font-bold text-sky-900 mt-0.5">{customer.totalPurchases || 0}</p>
+            </div>
+            <div className="rounded-xl bg-violet-50 border border-violet-100 px-3 py-2.5">
+              <p className="text-[10px] font-medium text-violet-700 uppercase tracking-wide">Last purchase</p>
+              <p className="text-sm font-bold text-violet-900 mt-0.5">{formatDate(customer.lastPurchaseDate)}</p>
+            </div>
+          </div>
+
+          {(customer.orderDescription || customer.orderDeadline) && (
+            <div className="rounded-xl border border-orange-100 bg-orange-50/60 p-3">
+              <div className="flex items-center gap-1.5 mb-2">
+                <FiPackage className="text-orange-600" size={14} />
+                <h3 className="text-xs font-semibold text-slate-800">Latest order</h3>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {customer.orderDescription && (
+                  <div>
+                    <p className="text-[10px] text-slate-500">Description</p>
+                    <p className="text-sm font-medium text-slate-800">{customer.orderDescription}</p>
                   </div>
-                </div>
-              )}
+                )}
+                {customer.orderDeadline && (
+                  <div>
+                    <p className="text-[10px] text-slate-500 flex items-center gap-1"><FiClock size={10} /> Deadline</p>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className={`text-sm font-medium ${new Date(customer.orderDeadline) < new Date(new Date().toDateString()) ? 'text-rose-600' : 'text-emerald-700'}`}>
+                        {formatDate(customer.orderDeadline)}
+                        {new Date(customer.orderDeadline) < new Date(new Date().toDateString()) ? ' · Overdue' : ''}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newDeadline = prompt('Enter new deadline (YYYY-MM-DD):', customer.orderDeadline);
+                          if (newDeadline) setCustomer({ ...customer, orderDeadline: newDeadline });
+                        }}
+                        className="text-sky-600 hover:text-sky-800 p-1"
+                        aria-label="Edit deadline"
+                      >
+                        <FiEdit size={14} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Notes */}
-        {customer.notes && (
-          <div className="mt-4 p-3 bg-gray-100 rounded-lg">
-            <p className="text-gray-500 text-sm">Notes</p>
-            <p className="font-medium">{customer.notes}</p>
-          </div>
-        )}
+          {customer.notes && (
+            <div className="rounded-xl bg-slate-50 border border-slate-100 px-3 py-2">
+              <p className="text-[10px] text-slate-500">Notes</p>
+              <p className="text-sm text-slate-800">{customer.notes}</p>
+            </div>
+          )}
 
-        {/* Order Status Update Buttons */}
-        <div className="mt-4 flex items-center space-x-2 pt-2">
-          <span className="text-sm text-gray-500">Update Status:</span>
-          <button
-            onClick={() => updateOrderStatus('pending')}
-            className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-lg text-sm hover:bg-yellow-200"
-          >
-            Pending
-          </button>
-          <button
-            onClick={() => updateOrderStatus('processing')}
-            className="px-3 py-1 bg-blue-100 text-blue-800 rounded-lg text-sm hover:bg-blue-200"
-          >
-            Processing
-          </button>
-          <button
-            onClick={() => updateOrderStatus('completed')}
-            className="px-3 py-1 bg-green-100 text-green-800 rounded-lg text-sm hover:bg-green-200"
-          >
-            Completed
-          </button>
-          <button
-            onClick={() => updateOrderStatus('cancelled')}
-            className="px-3 py-1 bg-red-100 text-red-800 rounded-lg text-sm hover:bg-red-200"
-          >
-            Cancelled
-          </button>
+          <div className="flex flex-wrap items-center gap-1.5 pt-1">
+            <span className="text-[10px] text-slate-500 mr-1">Status:</span>
+            {['pending', 'processing', 'completed', 'cancelled'].map((status) => (
+              <button
+                key={status}
+                type="button"
+                onClick={() => updateOrderStatus(status)}
+                className="px-2 py-1 rounded-lg text-[10px] font-medium capitalize bg-slate-100 text-slate-700 hover:bg-teal-50 hover:text-teal-800"
+              >
+                {status}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      </section>
 
       {/* Tabs */}
-      <div className="bg-white rounded-lg shadow mb-6">
-        <div className="border-b border-gray-200">
-          <nav className="flex overflow-x-auto">
-            <button
-              onClick={() => setActiveTab('overview')}
-              className={`px-6 py-4 text-sm font-medium whitespace-nowrap ${
-                activeTab === 'overview'
-                  ? 'border-b-2 border-blue-500 text-blue-600'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Overview
-            </button>
-            <button
-              onClick={() => setActiveTab('payments')}
-              className={`px-6 py-4 text-sm font-medium whitespace-nowrap ${
-                activeTab === 'payments'
-                  ? 'border-b-2 border-blue-500 text-blue-600'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Payment History
-            </button>
-            <button
-              onClick={() => setActiveTab('orders')}
-              className={`px-6 py-4 text-sm font-medium whitespace-nowrap ${
-                activeTab === 'orders'
-                  ? 'border-b-2 border-blue-500 text-blue-600'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Order Details
-            </button>
-            <button
-              onClick={() => setActiveTab('files')}
-              className={`px-6 py-4 text-sm font-medium whitespace-nowrap ${
-                activeTab === 'files'
-                  ? 'border-b-2 border-blue-500 text-blue-600'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Uploaded Files
-            </button>
+      <section className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
+        <div className="border-b border-slate-100 overflow-x-auto">
+          <nav className="flex min-w-max">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-3 sm:px-4 py-2.5 text-xs font-medium whitespace-nowrap border-b-2 transition ${
+                  activeTab === tab.id
+                    ? 'border-teal-600 text-teal-700'
+                    : 'border-transparent text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
           </nav>
         </div>
 
-        <div className="p-6">
-          {/* Overview Tab */}
+        <div className="p-3 sm:p-4">
           {activeTab === 'overview' && (
             <div>
-              <h3 className="text-lg font-semibold mb-4">Recent Activity</h3>
+              <h3 className="text-xs font-semibold text-slate-700 mb-2">Recent activity</h3>
               {purchaseHistory.length > 0 ? (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {purchaseHistory.slice(0, 5).map((purchase, index) => (
-                    <div key={index} className="flex justify-between items-center p-3 border rounded-lg hover:bg-gray-50">
-                      <div>
-                        <p className="font-medium">{purchase.description || purchase.type || 'Payment'}</p>
-                        <p className="text-sm text-gray-500">{purchase.date}</p>
+                    <div key={purchase._id || index} className="flex justify-between items-center gap-3 rounded-xl border border-slate-100 px-3 py-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-slate-800 truncate">{purchase.description || purchase.type || 'Payment'}</p>
+                        <p className="text-[11px] text-slate-500">{purchase.date}</p>
                       </div>
                       {showMoney ? (
-                        <p className="font-bold text-green-600">ETB {formatCurrency(purchase.amount)}</p>
+                        <p className="text-sm font-semibold text-emerald-700 shrink-0">ETB {formatCurrency(purchase.amount)}</p>
                       ) : (
-                        <p className="text-sm text-teal-700">{purchase.quantity || 0} items</p>
+                        <p className="text-[11px] text-teal-700 shrink-0">{purchase.quantity || 0} items</p>
                       )}
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-gray-500">No recent activity</p>
+                <p className="text-xs text-slate-500">No recent activity</p>
               )}
             </div>
           )}
 
-          {/* Payments Tab with Delete */}
           {activeTab === 'payments' && (
             <div>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50">
+              {/* Mobile cards */}
+              <div className="sm:hidden space-y-2">
+                {currentPurchases.map((purchase, index) => (
+                  <div key={purchase._id || index} className="rounded-xl border border-slate-100 p-3">
+                    <div className="flex justify-between gap-2">
+                      <p className="text-sm font-medium text-slate-800">{purchase.description || purchase.type || 'Payment'}</p>
+                      <button type="button" onClick={() => handleDeletePayment(purchase._id)} className="text-rose-500"><FiTrash2 size={14} /></button>
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-1">{purchase.date} · {purchase.method || 'N/A'}</p>
+                    {showMoney && <p className="text-sm font-semibold text-emerald-700 mt-1">ETB {formatCurrency(purchase.amount)}</p>}
+                    <p className="text-[10px] text-slate-400 mt-0.5 truncate">{purchase.transactionId || '—'}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop table */}
+              <div className="hidden sm:block overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead className="bg-slate-50 text-slate-500">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">#</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
-                      {showMoney && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>}
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Method</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Transaction ID</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                      <th className="px-3 py-2 text-left font-medium">#</th>
+                      <th className="px-3 py-2 text-left font-medium">Date</th>
+                      <th className="px-3 py-2 text-left font-medium">Description</th>
+                      {showMoney && <th className="px-3 py-2 text-left font-medium">Amount</th>}
+                      <th className="px-3 py-2 text-left font-medium">Method</th>
+                      <th className="px-3 py-2 text-left font-medium">Txn</th>
+                      <th className="px-3 py-2 text-left font-medium"> </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200">
+                  <tbody className="divide-y divide-slate-100">
                     {currentPurchases.map((purchase, index) => (
-                      <tr key={purchase._id || index} className="hover:bg-gray-50">
-                        <td className="px-4 py-3">{indexOfFirstItem + index + 1}</td>
-                        <td className="px-4 py-3">{purchase.date}</td>
-                        <td className="px-4 py-3">{purchase.description || purchase.type || 'Payment'}</td>
-                        {showMoney && (
-                          <td className="px-4 py-3 font-medium text-green-600">
-                            ETB {formatCurrency(purchase.amount)}
-                          </td>
-                        )}
-                        <td className="px-4 py-3">{purchase.method || 'N/A'}</td>
-                        <td className="px-4 py-3">{purchase.transactionId || '—'}</td>
-                        <td className="px-4 py-3">
-                          <button
-                            onClick={() => handleDeletePayment(purchase._id)}
-                            className="text-red-500 hover:text-red-700"
-                          >
-                            <FiTrash2 size={16} />
+                      <tr key={purchase._id || index}>
+                        <td className="px-3 py-2">{indexOfFirstItem + index + 1}</td>
+                        <td className="px-3 py-2 whitespace-nowrap">{purchase.date}</td>
+                        <td className="px-3 py-2">{purchase.description || purchase.type || 'Payment'}</td>
+                        {showMoney && <td className="px-3 py-2 font-medium text-emerald-700">ETB {formatCurrency(purchase.amount)}</td>}
+                        <td className="px-3 py-2">{purchase.method || 'N/A'}</td>
+                        <td className="px-3 py-2 max-w-[8rem] truncate">{purchase.transactionId || '—'}</td>
+                        <td className="px-3 py-2">
+                          <button type="button" onClick={() => handleDeletePayment(purchase._id)} className="text-rose-500 hover:text-rose-700">
+                            <FiTrash2 size={14} />
                           </button>
                         </td>
                       </tr>
@@ -631,482 +574,343 @@ const CustomerDetails = () => {
                 </table>
               </div>
 
-              {/* Pagination */}
               {purchaseHistory.length > itemsPerPage && (
-                <div className="mt-4 flex items-center justify-between">
-                  <p className="text-sm text-gray-500">
-                    Page {currentPage} of {totalPages}
-                  </p>
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                      disabled={currentPage === 1}
-                      className={`px-3 py-1 border rounded flex items-center ${
-                        currentPage === 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-50'
-                      }`}
-                    >
-                      <FiChevronLeft className="mr-1" size={16} />
-                      Previous
-                    </button>
-                    <button
-                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                      disabled={currentPage === totalPages}
-                      className={`px-3 py-1 border rounded flex items-center ${
-                        currentPage === totalPages ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-50'
-                      }`}
-                    >
-                      Next
-                      <FiChevronRight className="ml-1" size={16} />
-                    </button>
+                <div className="mt-3 flex items-center justify-between gap-2">
+                  <p className="text-[11px] text-slate-500">Page {currentPage} of {totalPages}</p>
+                  <div className="flex gap-1">
+                    <button type="button" onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))} disabled={currentPage === 1} className="px-2 py-1 border rounded-lg text-xs disabled:opacity-40"><FiChevronLeft size={14} /></button>
+                    <button type="button" onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))} disabled={currentPage === totalPages} className="px-2 py-1 border rounded-lg text-xs disabled:opacity-40"><FiChevronRight size={14} /></button>
                   </div>
                 </div>
               )}
             </div>
           )}
 
-          {/* Orders Tab */}
           {activeTab === 'orders' && (
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Order Details</h3>
-              <div className="bg-gray-50 rounded-lg p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <p className="text-sm text-gray-500 mb-1">Order Description</p>
-                    <p className="font-medium text-lg">{customer.orderDescription || 'No order description'}</p>
+            <div className="space-y-3">
+              {customerOrders.length === 0 ? (
+                <p className="text-xs text-slate-500 rounded-xl border border-dashed border-slate-200 px-3 py-6 text-center">
+                  No orders yet. Use Add Order on the customers list.
+                </p>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    {[...customerOrders].reverse().map((order, index) => {
+                      const isActive = (selectedOrder?._id || '') === order._id;
+                      return (
+                        <button
+                          key={order._id || index}
+                          type="button"
+                          onClick={() => setSelectedOrderId(order._id)}
+                          className={`w-full text-left rounded-xl border px-3 py-2.5 transition ${
+                            isActive
+                              ? 'border-teal-300 bg-teal-50/80 ring-1 ring-teal-200'
+                              : 'border-slate-100 bg-white hover:bg-slate-50'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-slate-800 truncate">
+                                {order.description || 'Order'}
+                              </p>
+                              <p className="text-[11px] text-slate-500 mt-0.5">
+                                {order.date ? formatDate(order.date) : '—'}
+                                {order.transactionId ? ` · ${order.transactionId}` : ''}
+                              </p>
+                            </div>
+                            <div className="shrink-0 flex flex-col items-end gap-1">
+                              {getStatusBadge(order.status)}
+                              <span className="text-[10px] font-medium text-sky-700">View details</span>
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-500 mb-1">Current Status</p>
-                    <div className="mt-1">{getStatusBadge(customer.orderStatus)}</div>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500 mb-1">Deadline</p>
-                    <p className={`font-medium text-lg ${
-                      customer.orderDeadline && new Date(customer.orderDeadline) < new Date() 
-                        ? 'text-red-600' 
-                        : 'text-green-600'
-                    }`}>
-                      {customer.orderDeadline ? formatDate(customer.orderDeadline) : 'Not set'}
-                      {customer.orderDeadline && new Date(customer.orderDeadline) < new Date() && ' (Overdue)'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500 mb-1">Last Updated</p>
-                    <p className="font-medium text-lg">{customer.updatedAt ? formatDate(customer.updatedAt) : 'N/A'}</p>
-                  </div>
-                </div>
-              </div>
+
+                  {selectedOrder && (
+                    <div className="rounded-xl border border-teal-100 bg-teal-50/40 p-3 sm:p-4 space-y-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <h4 className="text-xs font-semibold text-teal-900 uppercase tracking-wide">
+                          Order details
+                        </h4>
+                        {getStatusBadge(selectedOrder.status)}
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <p className="text-[10px] text-slate-500">Description</p>
+                          <p className="text-sm font-medium text-slate-800">{selectedOrder.description || '—'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-slate-500">Deadline</p>
+                          <p className={`text-sm font-medium ${
+                            selectedOrder.deadline && new Date(selectedOrder.deadline) < new Date(new Date().toDateString())
+                              ? 'text-rose-600'
+                              : 'text-emerald-700'
+                          }`}>
+                            {selectedOrder.deadline ? formatDate(selectedOrder.deadline) : 'Not set'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-slate-500">Order date</p>
+                          <p className="text-sm font-medium text-slate-800">
+                            {selectedOrder.date ? formatDate(selectedOrder.date) : '—'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-slate-500">Receipt</p>
+                          <p className="text-sm font-medium text-slate-800 truncate">
+                            {selectedOrder.transactionId || '—'}
+                          </p>
+                        </div>
+                        {showMoney && (
+                          <>
+                            <div>
+                              <p className="text-[10px] text-slate-500">Whole</p>
+                              <p className="text-sm font-semibold text-slate-800">
+                                ETB {formatCurrency(selectedOrder.wholePayment)}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-[10px] text-slate-500">First / Rest</p>
+                              <p className="text-sm font-medium text-teal-800">
+                                ETB {formatCurrency(selectedOrder.firstPayment)}
+                                <span className="text-amber-700">
+                                  {' · '}
+                                  {selectedOrder.restPaid
+                                    ? 'Rest paid'
+                                    : `Rest ETB ${formatCurrency(selectedOrder.restPayment)}`}
+                                </span>
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-[10px] text-slate-500">Payment method</p>
+                              <p className="text-sm font-medium text-slate-800">
+                                {selectedOrder.paymentMethod || '—'}
+                              </p>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                      {(selectedOrder.orderPhoto || (showMoney && selectedOrder.paymentPhoto)) && (
+                        <div className="grid grid-cols-2 gap-2">
+                          {selectedOrder.orderPhoto && (
+                            <div>
+                              <p className="text-[10px] text-slate-500 mb-1">Order photo</p>
+                              <img
+                                src={selectedOrder.orderPhoto}
+                                alt="Order"
+                                className="h-24 w-full rounded-xl border object-cover"
+                              />
+                            </div>
+                          )}
+                          {showMoney && selectedOrder.paymentPhoto && (
+                            <div>
+                              <p className="text-[10px] text-slate-500 mb-1">Payment proof</p>
+                              <img
+                                src={selectedOrder.paymentPhoto}
+                                alt="Payment"
+                                className="h-24 w-full rounded-xl border object-cover"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           )}
 
-          {/* Files Tab with Delete */}
           {activeTab === 'files' && (
             <div>
-              <h3 className="text-lg font-semibold mb-4">Uploaded Documents</h3>
               {uploadedFiles.length > 0 ? (
                 <div className="space-y-2">
                   {uploadedFiles.map((file) => (
-                    <div key={file.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 gap-3">
-                      <div className="flex items-center min-w-0">
+                    <div key={file.id} className="flex items-center justify-between gap-2 rounded-xl border border-slate-100 p-2.5">
+                      <div className="flex items-center gap-2 min-w-0">
                         {file.url && String(file.url).startsWith('data:image') ? (
-                          <img src={file.url} alt={file.name} className="w-12 h-12 rounded object-cover border mr-3 shrink-0" />
+                          <img src={file.url} alt={file.name} className="w-10 h-10 rounded-lg object-cover border shrink-0" />
                         ) : (
-                          <FiFileText className="text-blue-500 mr-3 shrink-0" size={20} />
+                          <FiFileText className="text-teal-600 shrink-0" size={18} />
                         )}
                         <div className="min-w-0">
-                          <p className="font-medium truncate">{file.name}</p>
-                          <p className="text-xs text-gray-500">
-                            {file.type ? `${file.type} · ` : ''}Uploaded: {file.date} • Size: {file.size}
-                          </p>
+                          <p className="text-xs font-medium text-slate-800 truncate">{file.name}</p>
+                          <p className="text-[10px] text-slate-500">{file.type ? `${file.type} · ` : ''}{file.date} · {file.size}</p>
                         </div>
                       </div>
-                      <div className="flex space-x-2 shrink-0">
+                      <div className="flex gap-2 shrink-0">
                         {file.url && (
-                          <a
-                            href={file.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-blue-500 hover:text-blue-700"
-                            title="Open"
-                          >
-                            <FiDownload size={18} />
-                          </a>
+                          <a href={file.url} target="_blank" rel="noreferrer" className="text-sky-600"><FiDownload size={16} /></a>
                         )}
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteFile(file.id)}
-                          className="text-red-500 hover:text-red-700"
-                          title="Delete"
-                        >
-                          <FiTrash2 size={18} />
-                        </button>
+                        <button type="button" onClick={() => handleDeleteFile(file.id)} className="text-rose-500"><FiTrash2 size={16} /></button>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8 text-gray-500 border-2 border-dashed rounded-lg">
-                  <FiUpload className="mx-auto mb-2" size={32} />
-                  <p>No files uploaded yet</p>
-                  <button
-                    type="button"
-                    onClick={() => setShowUploadModal(true)}
-                    className="mt-2 text-blue-500 hover:text-blue-700"
-                  >
-                    Upload a file
-                  </button>
+                <div className="text-center py-8 text-slate-500 border border-dashed rounded-xl">
+                  <FiUpload className="mx-auto mb-2 opacity-50" size={24} />
+                  <p className="text-xs">No files yet</p>
+                  <button type="button" onClick={() => setShowUploadModal(true)} className="mt-2 text-xs text-teal-700 font-medium">Upload a file</button>
                 </div>
               )}
             </div>
           )}
         </div>
-      </div>
+      </section>
 
-      {/* Edit Customer Modal */}
-      {showEditModal && (
-        <div className="fixed inset-0 bg-gray-900 bg-opacity-30 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 flex justify-between items-center sticky top-0">
-              <h2 className="text-xl font-bold text-white flex items-center">
-                <FiEdit className="mr-2" />
-                Edit Customer
-              </h2>
-              <button
-                onClick={() => setShowEditModal(false)}
-                className="text-white hover:text-gray-200"
-              >
-                <FiX size={24} />
-              </button>
-            </div>
-            <div className="p-6">
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-gray-700 text-sm font-medium mb-2">Full Name</label>
-                    <input
-                      type="text"
-                      value={editFormData.fullName || ''}
-                      onChange={(e) => setEditFormData({...editFormData, fullName: e.target.value})}
-                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-gray-700 text-sm font-medium mb-2">Phone Number</label>
-                    <input
-                      type="text"
-                      value={editFormData.phoneNumber || ''}
-                      onChange={(e) => setEditFormData({...editFormData, phoneNumber: e.target.value})}
-                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-gray-700 text-sm font-medium mb-2">Organization</label>
-                    <input
-                      type="text"
-                      value={editFormData.organization || ''}
-                      onChange={(e) => setEditFormData({...editFormData, organization: e.target.value})}
-                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-gray-700 text-sm font-medium mb-2">Email</label>
-                    <input
-                      type="email"
-                      value={editFormData.email || ''}
-                      onChange={(e) => setEditFormData({...editFormData, email: e.target.value})}
-                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-gray-700 text-sm font-medium mb-2">Address</label>
-                    <input
-                      type="text"
-                      value={editFormData.address || ''}
-                      onChange={(e) => setEditFormData({...editFormData, address: e.target.value})}
-                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-gray-700 text-sm font-medium mb-2">Customer Type</label>
-                    <select
-                      value={editFormData.customerType || 'Regular'}
-                      onChange={(e) => setEditFormData({...editFormData, customerType: e.target.value})}
-                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="Regular">Regular</option>
-                      <option value="VIP">VIP</option>
-                      <option value="New">New</option>
-                      <option value="Wholesale">Wholesale</option>
-                      <option value="Corporate">Corporate</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-gray-700 text-sm font-medium mb-2">Order Description</label>
-                    <input
-                      type="text"
-                      value={editFormData.orderDescription || ''}
-                      onChange={(e) => setEditFormData({...editFormData, orderDescription: e.target.value})}
-                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-gray-700 text-sm font-medium mb-2">Deadline</label>
-                    <input
-                      type="date"
-                      value={editFormData.orderDeadline || ''}
-                      onChange={(e) => setEditFormData({...editFormData, orderDeadline: e.target.value})}
-                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-gray-700 text-sm font-medium mb-2">Notes</label>
-                    <textarea
-                      value={editFormData.notes || ''}
-                      onChange={(e) => setEditFormData({...editFormData, notes: e.target.value})}
-                      rows="3"
-                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="px-6 py-4 bg-gray-50 border-t flex justify-end space-x-3">
-              <button
-                onClick={() => setShowEditModal(false)}
-                className="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-100"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleUpdateCustomer}
-                className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center"
-              >
-                <FiSave className="mr-2" />
-                Save Changes
-              </button>
-            </div>
+      {/* Edit modal */}
+      {showEditModal && modalShell(
+        <div className="relative w-full sm:max-w-lg max-h-[92vh] overflow-hidden rounded-t-2xl sm:rounded-2xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-teal-700 px-4 py-3 text-white flex justify-between items-center sticky top-0">
+            <h2 className="text-sm font-semibold flex items-center gap-1.5"><FiEdit size={14} /> Edit customer</h2>
+            <button type="button" onClick={() => setShowEditModal(false)}><FiX size={18} /></button>
           </div>
-        </div>
-      )}
-
-      {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-gray-900 bg-opacity-30 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
-            <div className="bg-gradient-to-r from-red-600 to-pink-600 px-6 py-4">
-              <h2 className="text-xl font-bold text-white flex items-center">
-                <FiTrash2 className="mr-2" />
-                Delete Customer
-              </h2>
-            </div>
-            <div className="p-6">
-              <p className="text-gray-700 mb-4">
-                Are you sure you want to delete <span className="font-bold">{customer.fullName}</span>? 
-                This action cannot be undone and all associated data will be permanently removed.
-              </p>
-            </div>
-            <div className="px-6 py-4 bg-gray-50 border-t flex justify-end space-x-3">
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-100"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDeleteCustomer}
-                className="px-6 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 flex items-center"
-              >
-                <FiTrash2 className="mr-2" />
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Add Payment Modal (same as before) */}
-      {showAddPaymentModal && (
-        <div className="fixed inset-0 bg-gray-900 bg-opacity-30 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
-            <div className="bg-gradient-to-r from-green-600 to-teal-600 px-6 py-4 flex justify-between items-center">
-              <h2 className="text-xl font-bold text-white flex items-center">
-                <FiDollarSign className="mr-2" />
-                Add Payment
-              </h2>
-              <button
-                onClick={() => setShowAddPaymentModal(false)}
-                className="text-white hover:text-gray-200"
-              >
-                <FiX size={24} />
-              </button>
-            </div>
-            <div className="p-6">
-              {/* Payment form fields - same as before */}
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-gray-700 text-sm font-medium mb-2">Amount (ETB)</label>
+          <div className="p-4 overflow-y-auto max-h-[calc(92vh-7rem)] space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {[
+                ['fullName', 'Full name', 'text'],
+                ['phoneNumber', 'Phone', 'text'],
+                ['organization', 'Organization', 'text'],
+                ['email', 'Email', 'email'],
+                ['address', 'Address', 'text'],
+                ['orderDescription', 'Order description', 'text'],
+                ['orderDeadline', 'Deadline', 'date']
+              ].map(([key, label, type]) => (
+                <div key={key} className={key === 'address' || key === 'orderDescription' ? 'sm:col-span-2' : ''}>
+                  <label className="block text-[11px] font-medium text-slate-600 mb-1">{label}</label>
                   <input
-                    type="number"
-                    value={newPayment.amount}
-                    onChange={(e) => setNewPayment({...newPayment, amount: e.target.value})}
-                    placeholder="0.00"
-                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                    type={type}
+                    value={editFormData[key] || ''}
+                    onChange={(e) => setEditFormData({ ...editFormData, [key]: e.target.value })}
+                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500/30"
                   />
                 </div>
-                <div>
-                  <label className="block text-gray-700 text-sm font-medium mb-2">Payment Date</label>
-                  <input
-                    type="date"
-                    value={newPayment.date}
-                    onChange={(e) => setNewPayment({...newPayment, date: e.target.value})}
-                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-gray-700 text-sm font-medium mb-2">Payment Method</label>
-                  <select
-                    value={newPayment.method}
-                    onChange={(e) => setNewPayment({...newPayment, method: e.target.value})}
-                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                  >
-                    <option value="Bank Transfer">Bank Transfer</option>
-                    <option value="Cash">Cash</option>
-                    <option value="Credit Card">Credit Card</option>
-                    <option value="Mobile Money">Mobile Money</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-gray-700 text-sm font-medium mb-2">Transaction ID</label>
-                  <input
-                    type="text"
-                    value={newPayment.transactionId}
-                    onChange={(e) => setNewPayment({...newPayment, transactionId: e.target.value})}
-                    placeholder="Optional"
-                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-gray-700 text-sm font-medium mb-2">Description</label>
-                  <input
-                    type="text"
-                    value={newPayment.description}
-                    onChange={(e) => setNewPayment({...newPayment, description: e.target.value})}
-                    placeholder="Payment description"
-                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                  />
-                </div>
-              </div>
-            </div>
-            <div className="px-6 py-4 bg-gray-50 border-t flex justify-end space-x-3">
-              <button
-                onClick={() => setShowAddPaymentModal(false)}
-                className="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-100"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleAddPayment}
-                className="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center"
-              >
-                <FiSave className="mr-2" />
-                Save Payment
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Upload File Modal (same as before) */}
-      {showUploadModal && (
-        <div className="fixed inset-0 bg-gray-900 bg-opacity-30 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
-            <div className="bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-4 flex justify-between items-center">
-              <h2 className="text-xl font-bold text-white flex items-center">
-                <FiUpload className="mr-2" />
-                Upload File
-              </h2>
-              <button
-                onClick={() => setShowUploadModal(false)}
-                className="text-white hover:text-gray-200"
-              >
-                <FiX size={24} />
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
+              ))}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Document type</label>
+                <label className="block text-[11px] font-medium text-slate-600 mb-1">Type</label>
                 <select
-                  value={uploadType}
-                  onChange={(e) => setUploadType(e.target.value)}
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  value={editFormData.customerType || 'Regular'}
+                  onChange={(e) => setEditFormData({ ...editFormData, customerType: e.target.value })}
+                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200"
                 >
-                  <option value="payment">Payment proof</option>
-                  <option value="order">Order photo</option>
-                  <option value="other">Other document</option>
+                  <option value="Regular">Regular</option>
+                  <option value="VIP">VIP</option>
+                  <option value="New">New</option>
+                  <option value="Wholesale">Wholesale</option>
+                  <option value="Corporate">Corporate</option>
                 </select>
               </div>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                {selectedFile ? (
-                  <div>
-                    <p className="font-medium text-gray-800">{selectedFile.name}</p>
-                    <p className="text-sm text-gray-500 mt-1">
-                      {(selectedFile.size / 1024).toFixed(2)} KB
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedFile(null)}
-                      className="mt-2 text-red-500 hover:text-red-700 text-sm"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    <FiUpload className="mx-auto text-gray-400 mb-2" size={32} />
-                    <p className="text-gray-600 mb-2">Choose a payment receipt, order photo, or document</p>
-                    <input
-                      type="file"
-                      id="file-upload"
-                      accept="image/*,.pdf"
-                      className="hidden"
-                      onChange={(e) => setSelectedFile(e.target.files[0])}
-                    />
-                    <label
-                      htmlFor="file-upload"
-                      className="inline-block px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 cursor-pointer"
-                    >
-                      Select File
-                    </label>
-                  </>
-                )}
+              <div className="sm:col-span-2">
+                <label className="block text-[11px] font-medium text-slate-600 mb-1">Notes</label>
+                <textarea
+                  value={editFormData.notes || ''}
+                  onChange={(e) => setEditFormData({ ...editFormData, notes: e.target.value })}
+                  rows="2"
+                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200"
+                />
               </div>
             </div>
-            <div className="px-6 py-4 bg-gray-50 border-t flex justify-end space-x-3">
-              <button
-                onClick={() => setShowUploadModal(false)}
-                className="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-100"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleFileUpload}
-                disabled={!selectedFile || uploading}
-                className={`px-6 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 flex items-center ${
-                  !selectedFile || uploading ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
-              >
-                {uploading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Uploading...
-                  </>
-                ) : (
-                  <>
-                    <FiUpload className="mr-2" />
-                    Upload
-                  </>
-                )}
-              </button>
+          </div>
+          <div className="px-4 py-3 border-t bg-slate-50 flex justify-end gap-2">
+            <button type="button" onClick={() => setShowEditModal(false)} className="px-3 py-1.5 text-xs rounded-lg border">Cancel</button>
+            <button type="button" onClick={handleUpdateCustomer} className="px-3 py-1.5 text-xs rounded-lg bg-teal-700 text-white inline-flex items-center gap-1"><FiSave size={12} /> Save</button>
+          </div>
+        </div>
+      )}
+
+      {showDeleteConfirm && modalShell(
+        <div className="relative w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl bg-white shadow-xl m-0 sm:m-0" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-rose-600 px-4 py-3 text-white">
+            <h2 className="text-sm font-semibold flex items-center gap-1.5"><FiTrash2 size={14} /> Delete customer</h2>
+          </div>
+          <div className="p-4 text-sm text-slate-700">
+            Delete <span className="font-semibold">{customer.fullName}</span>? This cannot be undone.
+          </div>
+          <div className="px-4 py-3 border-t bg-slate-50 flex justify-end gap-2">
+            <button type="button" onClick={() => setShowDeleteConfirm(false)} className="px-3 py-1.5 text-xs rounded-lg border">Cancel</button>
+            <button type="button" onClick={handleDeleteCustomer} className="px-3 py-1.5 text-xs rounded-lg bg-rose-600 text-white">Delete</button>
+          </div>
+        </div>
+      )}
+
+      {showAddPaymentModal && modalShell(
+        <div className="relative w-full sm:max-w-md max-h-[92vh] overflow-hidden rounded-t-2xl sm:rounded-2xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-emerald-600 px-4 py-3 text-white flex justify-between items-center">
+            <h2 className="text-sm font-semibold flex items-center gap-1.5"><FiDollarSign size={14} /> Add payment</h2>
+            <button type="button" onClick={() => setShowAddPaymentModal(false)}><FiX size={18} /></button>
+          </div>
+          <div className="p-4 space-y-3 overflow-y-auto">
+            {[
+              ['amount', 'Amount (ETB)', 'number'],
+              ['date', 'Date', 'date'],
+              ['transactionId', 'Transaction ID', 'text'],
+              ['description', 'Description', 'text']
+            ].map(([key, label, type]) => (
+              <div key={key}>
+                <label className="block text-[11px] font-medium text-slate-600 mb-1">{label}</label>
+                <input
+                  type={type}
+                  value={newPayment[key]}
+                  onChange={(e) => setNewPayment({ ...newPayment, [key]: e.target.value })}
+                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200"
+                />
+              </div>
+            ))}
+            <div>
+              <label className="block text-[11px] font-medium text-slate-600 mb-1">Method</label>
+              <select value={newPayment.method} onChange={(e) => setNewPayment({ ...newPayment, method: e.target.value })} className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200">
+                <option value="Bank Transfer">Bank Transfer</option>
+                <option value="Cash">Cash</option>
+                <option value="Credit Card">Credit Card</option>
+                <option value="Mobile Money">Mobile Money</option>
+              </select>
             </div>
+          </div>
+          <div className="px-4 py-3 border-t bg-slate-50 flex justify-end gap-2">
+            <button type="button" onClick={() => setShowAddPaymentModal(false)} className="px-3 py-1.5 text-xs rounded-lg border">Cancel</button>
+            <button type="button" onClick={handleAddPayment} className="px-3 py-1.5 text-xs rounded-lg bg-emerald-600 text-white">Save</button>
+          </div>
+        </div>
+      )}
+
+      {showUploadModal && modalShell(
+        <div className="relative w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-teal-700 px-4 py-3 text-white flex justify-between items-center">
+            <h2 className="text-sm font-semibold flex items-center gap-1.5"><FiUpload size={14} /> Upload file</h2>
+            <button type="button" onClick={() => setShowUploadModal(false)}><FiX size={18} /></button>
+          </div>
+          <div className="p-4 space-y-3">
+            <div>
+              <label className="block text-[11px] font-medium text-slate-600 mb-1">Type</label>
+              <select value={uploadType} onChange={(e) => setUploadType(e.target.value)} className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200">
+                <option value="payment">Payment proof</option>
+                <option value="order">Order photo</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <label className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 p-6 cursor-pointer hover:border-teal-300">
+              {selectedFile ? (
+                <div className="text-center">
+                  <p className="text-sm font-medium">{selectedFile.name}</p>
+                  <p className="text-[11px] text-slate-500">{(selectedFile.size / 1024).toFixed(1)} KB</p>
+                </div>
+              ) : (
+                <>
+                  <FiUpload className="text-slate-400" size={22} />
+                  <p className="text-xs text-slate-600">Tap to select file</p>
+                </>
+              )}
+              <input type="file" accept="image/*,.pdf" className="hidden" onChange={(e) => setSelectedFile(e.target.files?.[0] || null)} />
+            </label>
+          </div>
+          <div className="px-4 py-3 border-t bg-slate-50 flex justify-end gap-2">
+            <button type="button" onClick={() => setShowUploadModal(false)} className="px-3 py-1.5 text-xs rounded-lg border">Cancel</button>
+            <button type="button" onClick={handleFileUpload} disabled={!selectedFile || uploading} className="px-3 py-1.5 text-xs rounded-lg bg-teal-700 text-white disabled:opacity-50">
+              {uploading ? 'Uploading…' : 'Upload'}
+            </button>
           </div>
         </div>
       )}

@@ -1,0 +1,32 @@
+[
+  {
+    "_id": 2,
+    "date": "2026-09-22",
+    "time": "00:45",
+    "productId": 1,
+    "sku": "10001",
+    "productName": "foam",
+    "type": "use",
+    "direction": "out",
+    "from": "Warehouse",
+    "to": "Used in production",
+    "quantity": 6,
+    "note": "Raw material used",
+    "user": "sari"
+  },
+  {
+    "_id": 1,
+    "date": "2026-09-22",
+    "time": "00:45",
+    "productId": 1,
+    "sku": "10001",
+    "productName": "foam",
+    "type": "receive",
+    "direction": "in",
+    "from": "Supplier / Purchase",
+    "to": "Warehouse",
+    "quantity": 6,
+    "note": "abebe",
+    "user": "sari"
+  }
+]

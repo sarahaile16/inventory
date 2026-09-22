@@ -4,6 +4,16 @@ import axios from 'axios';
 import { FiBell, FiCheck, FiX, FiClock, FiAlertCircle, FiTruck, FiDollarSign } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { getUserRole } from '../auth/roles';
+import {
+  PageShell,
+  PageHero,
+  StatGrid,
+  StatCard,
+  Panel,
+  SoftButton,
+  LoadingBlock,
+  EmptyState
+} from '../components/ui/PageChrome';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 
@@ -26,7 +36,7 @@ const Notifications = () => {
   const fetchNotifications = async () => {
     try {
       setLoading(true);
-      
+
       const response = await axios.get(`${API_URL}/notifications`, {
         params: { role: getUserRole() }
       });
@@ -45,14 +55,13 @@ const Notifications = () => {
 
   const markAsRead = async (id) => {
     try {
-      // Update local state
-      setNotifications(notifications.map(notif => 
+      setNotifications(notifications.map((notif) =>
         notif.id === id ? { ...notif, read: true } : notif
       ));
-      
+
       // If using real API:
       // await axios.patch(`http://localhost:5000/api/notifications/${id}/read`);
-      
+
       toast.success('Notification marked as read');
     } catch (error) {
       console.error('Error marking notification as read:', error);
@@ -61,11 +70,11 @@ const Notifications = () => {
 
   const markAllAsRead = async () => {
     try {
-      setNotifications(notifications.map(notif => ({ ...notif, read: true })));
-      
+      setNotifications(notifications.map((notif) => ({ ...notif, read: true })));
+
       // If using real API:
       // await axios.patch('http://localhost:5000/api/notifications/read-all');
-      
+
       toast.success('All notifications marked as read');
     } catch (error) {
       console.error('Error marking all as read:', error);
@@ -74,11 +83,11 @@ const Notifications = () => {
 
   const deleteNotification = async (id) => {
     try {
-      setNotifications(notifications.filter(notif => notif.id !== id));
-      
+      setNotifications(notifications.filter((notif) => notif.id !== id));
+
       // If using real API:
       // await axios.delete(`http://localhost:5000/api/notifications/${id}`);
-      
+
       toast.success('Notification deleted');
     } catch (error) {
       console.error('Error deleting notification:', error);
@@ -89,10 +98,10 @@ const Notifications = () => {
     if (window.confirm('Are you sure you want to clear all notifications?')) {
       try {
         setNotifications([]);
-        
+
         // If using real API:
         // await axios.delete('http://localhost:5000/api/notifications/clear-all');
-        
+
         toast.success('All notifications cleared');
       } catch (error) {
         console.error('Error clearing notifications:', error);
@@ -100,185 +109,181 @@ const Notifications = () => {
     }
   };
 
-  // Filter notifications
-  const filteredNotifications = notifications.filter(notif => {
+  const filteredNotifications = notifications.filter((notif) => {
     if (filter === 'unread') return !notif.read;
     if (filter === 'read') return notif.read;
     return true;
   });
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = notifications.filter((n) => !n.read).length;
 
   const getIconColor = (color) => {
-    switch(color) {
-      case 'blue': return 'bg-blue-100 text-blue-600';
-      case 'red': return 'bg-red-100 text-red-600';
-      case 'green': return 'bg-green-100 text-green-600';
-      case 'yellow': return 'bg-yellow-100 text-yellow-600';
-      default: return 'bg-gray-100 text-gray-600';
+    switch (color) {
+      case 'blue':
+        return 'bg-sky-100 text-sky-600';
+      case 'red':
+        return 'bg-rose-100 text-rose-600';
+      case 'green':
+        return 'bg-emerald-100 text-emerald-600';
+      case 'yellow':
+        return 'bg-amber-100 text-amber-600';
+      default:
+        return 'bg-slate-100 text-slate-600';
     }
   };
 
   if (loading) {
     return (
-      <div className="p-6 text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-      </div>
+      <PageShell>
+        <LoadingBlock />
+      </PageShell>
     );
   }
 
   return (
-    <div className="p-6">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Notifications</h1>
-        <p className="text-gray-600">Deadline alerts include customer orders and rest payment still due</p>
-      </div>
+    <PageShell>
+      <PageHero
+        tone="teal"
+        eyebrow="Alerts"
+        title="Notifications"
+        subtitle="Deadline alerts include customer orders and rest payment still due"
+      />
 
-      {/* Notification Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-gray-500 text-sm">Total Notifications</p>
-          <p className="text-2xl font-bold">{notifications.length}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-gray-500 text-sm">Unread</p>
-          <p className="text-2xl font-bold text-blue-600">{unreadCount}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-gray-500 text-sm">Deadline / rest due</p>
-          <p className="text-2xl font-bold text-amber-600">
-            {notifications.filter((n) => n.type === 'deadline').length}
-          </p>
-        </div>
-      </div>
+      <StatGrid cols="3">
+        <StatCard
+          label="Total"
+          value={notifications.length}
+          icon={<FiBell size={16} />}
+          accent="slate"
+        />
+        <StatCard
+          label="Unread"
+          value={unreadCount}
+          icon={<FiBell size={16} />}
+          accent="sky"
+        />
+        <StatCard
+          label="Deadline / rest due"
+          value={notifications.filter((n) => n.type === 'deadline').length}
+          icon={<FiClock size={16} />}
+          accent="amber"
+        />
+      </StatGrid>
 
-      {/* Filters and Actions */}
-      <div className="bg-white rounded-lg shadow mb-6">
-        <div className="p-4 border-b flex flex-wrap items-center justify-between gap-4">
-          <div className="flex space-x-2">
-            <button
-              onClick={() => setFilter('all')}
-              className={`px-4 py-2 rounded-lg ${
-                filter === 'all' 
-                  ? 'bg-blue-500 text-white' 
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              All
-            </button>
-            <button
-              onClick={() => setFilter('unread')}
-              className={`px-4 py-2 rounded-lg ${
-                filter === 'unread' 
-                  ? 'bg-blue-500 text-white' 
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              Unread
-            </button>
-            <button
-              onClick={() => setFilter('read')}
-              className={`px-4 py-2 rounded-lg ${
-                filter === 'read' 
-                  ? 'bg-blue-500 text-white' 
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              Read
-            </button>
-          </div>
-          
-          <div className="flex space-x-2">
-            {unreadCount > 0 && (
-              <button
-                onClick={markAllAsRead}
-                className="px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg flex items-center"
+      <Panel
+        title="Inbox"
+        action={
+          <div className="flex flex-wrap gap-1.5">
+            {['all', 'unread', 'read'].map((key) => (
+              <SoftButton
+                key={key}
+                onClick={() => setFilter(key)}
+                className={
+                  filter === key
+                    ? 'bg-teal-600 text-white'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }
               >
-                <FiCheck className="mr-2" />
-                Mark all as read
-              </button>
+                {key.charAt(0).toUpperCase() + key.slice(1)}
+              </SoftButton>
+            ))}
+            {unreadCount > 0 && (
+              <SoftButton
+                onClick={markAllAsRead}
+                className="text-teal-700 hover:bg-teal-50"
+              >
+                <FiCheck size={12} /> Mark all
+              </SoftButton>
             )}
             {notifications.length > 0 && (
-              <button
+              <SoftButton
                 onClick={clearAll}
-                className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg flex items-center"
+                className="text-rose-600 hover:bg-rose-50"
               >
-                <FiX className="mr-2" />
-                Clear all
-              </button>
+                <FiX size={12} /> Clear
+              </SoftButton>
             )}
           </div>
-        </div>
-
-        {/* Notifications List - Exactly matching your screenshot */}
-        <div className="divide-y divide-gray-200">
+        }
+        bodyClassName="p-0 sm:p-0"
+      >
+        <div className="divide-y divide-slate-100">
           {filteredNotifications.length > 0 ? (
             filteredNotifications.map((notification) => {
               const Icon = notification.icon;
               return (
-                <div 
-                  key={notification.id} 
-                  className={`p-4 hover:bg-gray-50 transition ${!notification.read ? 'bg-blue-50' : ''}`}
+                <div
+                  key={notification.id}
+                  className={`px-3 py-2.5 hover:bg-slate-50/80 transition ${
+                    !notification.read ? 'bg-teal-50/50' : ''
+                  }`}
                 >
-                  <div className="flex items-start">
-                    {/* Icon */}
-                    <div className={`p-2 rounded-full ${getIconColor(notification.color)} mr-4`}>
-                      <Icon size={20} />
+                  <div className="flex items-start gap-2.5 min-w-0">
+                    <div
+                      className={`p-1.5 rounded-lg shrink-0 ${getIconColor(notification.color)}`}
+                    >
+                      <Icon size={14} />
                     </div>
-                    
-                    {/* Content - Matching your screenshot format */}
-                    <div className="flex-1">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <p className={`text-gray-900 ${!notification.read ? 'font-semibold' : ''}`}>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p
+                            className={`text-xs sm:text-sm text-slate-900 truncate ${
+                              !notification.read ? 'font-semibold' : ''
+                            }`}
+                          >
                             {notification.message}
                           </p>
-                          <div className="flex items-center mt-1 text-sm text-gray-500">
-                            <FiClock className="mr-1" size={14} />
+                          <div className="flex items-center mt-0.5 text-[10px] text-slate-500">
+                            <FiClock className="mr-1" size={10} />
                             <span>{notification.date}</span>
                             {notification.time && (
                               <>
-                                <span className="mx-1">•</span>
+                                <span className="mx-1">·</span>
                                 <span>{notification.time}</span>
                               </>
                             )}
                           </div>
                         </div>
-                        
-                        {/* Action buttons */}
-                        <div className="flex items-center space-x-2 ml-4">
+
+                        <div className="flex items-center gap-0.5 shrink-0">
                           {!notification.read && (
-                            <button
+                            <SoftButton
                               onClick={() => markAsRead(notification.id)}
-                              className="p-1 text-blue-600 hover:bg-blue-100 rounded"
+                              className="p-1 text-teal-600 hover:bg-teal-100"
                               title="Mark as read"
                             >
-                              <FiCheck size={16} />
-                            </button>
+                              <FiCheck size={14} />
+                            </SoftButton>
                           )}
-                          <button
+                          <SoftButton
                             onClick={() => deleteNotification(notification.id)}
-                            className="p-1 text-red-600 hover:bg-red-100 rounded"
+                            className="p-1 text-rose-600 hover:bg-rose-100"
                             title="Delete"
                           >
-                            <FiX size={16} />
-                          </button>
+                            <FiX size={14} />
+                          </SoftButton>
                         </div>
                       </div>
-                      
-                      {/* Type badge */}
-                      <div className="mt-2">
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${
-                          notification.type === 'deadline'
-                            ? 'bg-amber-100 text-amber-800'
-                            : notification.type === 'stock_movement' 
-                            ? 'bg-blue-100 text-blue-800'
+
+                      <div className="mt-1.5">
+                        <span
+                          className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] ${
+                            notification.type === 'deadline'
+                              ? 'bg-amber-100 text-amber-800'
+                              : notification.type === 'stock_movement'
+                                ? 'bg-sky-100 text-sky-800'
+                                : notification.type === 'low_stock'
+                                  ? 'bg-rose-100 text-rose-800'
+                                  : 'bg-slate-100 text-slate-800'
+                          }`}
+                        >
+                          {notification.type === 'deadline'
+                            ? 'Deadline + rest'
                             : notification.type === 'low_stock'
-                            ? 'bg-red-100 text-red-800'
-                            : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {notification.type === 'deadline' ? 'Deadline + rest payment' : notification.type === 'low_stock' ? 'Low Stock Alert' : 'Stock Movement'}
+                              ? 'Low Stock'
+                              : 'Stock Movement'}
                         </span>
                       </div>
                     </div>
@@ -287,42 +292,37 @@ const Notifications = () => {
               );
             })
           ) : (
-            <div className="text-center py-12 text-gray-500">
-              <FiBell size={48} className="mx-auto mb-4 text-gray-300" />
-              <p>No notifications found</p>
-            </div>
+            <EmptyState>
+              <FiBell size={28} className="mx-auto mb-2 text-slate-300" />
+              No notifications found
+            </EmptyState>
           )}
         </div>
-      </div>
+      </Panel>
 
-      {/* Quick Actions - Matching your screenshot */}
-      <div className="bg-white rounded-lg shadow p-4">
-        <h3 className="font-semibold mb-3">Quick Actions</h3>
-        <div className="flex flex-wrap gap-2">
+      <Panel title="Quick actions" className="mt-3 sm:mt-4">
+        <div className="flex flex-wrap gap-1.5">
           <Link
             to="/orders"
-            className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 flex items-center"
+            className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500 text-white hover:bg-amber-600"
           >
-            <FiClock className="mr-2" />
-            Open orders
+            <FiClock size={12} /> Open orders
           </Link>
-          <button 
-            onClick={() => window.location.href = '/stock-movement'}
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center"
+          <Link
+            to="/stock-movement"
+            className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-sky-600 text-white hover:bg-sky-700"
           >
-            <FiTruck className="mr-2" />
-            View Stock Movements
-          </button>
-          <button 
-            onClick={() => window.location.href = '/inventory'}
-            className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center"
+            <FiTruck size={12} /> Stock movements
+          </Link>
+          <Link
+            to="/inventory"
+            className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 text-white hover:bg-emerald-700"
           >
-            <FiAlertCircle className="mr-2" />
-            Check Low Stock
-          </button>
+            <FiAlertCircle size={12} /> Low stock
+          </Link>
         </div>
-      </div>
-    </div>
+      </Panel>
+    </PageShell>
   );
 };
 

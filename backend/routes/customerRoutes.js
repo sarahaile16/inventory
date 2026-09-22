@@ -1,59 +1,51 @@
 const express = require('express');
 const router = express.Router();
+const { requireAuth, requireRoles, ROLES } = require('../middleware/auth');
 const {
-  // Basic CRUD
   getAllCustomers,
   getCustomerById,
   getCustomerByPhone,
   createCustomer,
+  addCustomerOrder,
   updateCustomer,
   deleteCustomer,
   addCustomerDocument,
   deleteCustomerDocument,
-  
-  // Purchase History
   getCustomerPurchases,
   addCustomerPurchase,
-  
-  // Statistics & Search
   getCustomerStats,
   getRecentCustomers,
   searchCustomers,
-  
-  // Utilities
   getCustomerTypes,
   getCustomerStatuses,
-  
-  // Bulk Operations
   bulkImportCustomers
 } = require('../controllers/customerController');
 
-// ========== STATISTICS ROUTES ==========
-router.get('/stats/summary', getCustomerStats);
-router.get('/recent', getRecentCustomers);
-router.get('/types', getCustomerTypes);
-router.get('/statuses', getCustomerStatuses);
-router.get('/search', searchCustomers);
+const deskRoles = [ROLES.ADMIN, ROLES.MANAGEMENT, ROLES.STAFF];
+const moneyRoles = [ROLES.ADMIN, ROLES.MANAGEMENT];
 
-// ========== BULK OPERATIONS ==========
-router.post('/bulk', bulkImportCustomers);
+router.use(requireAuth);
 
-// ========== PHONE LOOKUP ==========
-router.get('/phone/:phone', getCustomerByPhone);
+router.get('/stats/summary', requireRoles(...deskRoles), getCustomerStats);
+router.get('/recent', requireRoles(...deskRoles), getRecentCustomers);
+router.get('/types', requireRoles(...deskRoles), getCustomerTypes);
+router.get('/statuses', requireRoles(...deskRoles), getCustomerStatuses);
+router.get('/search', requireRoles(...deskRoles), searchCustomers);
 
-// ========== CUSTOMER PURCHASES ==========
-router.get('/:id/purchases', getCustomerPurchases);
-router.post('/:id/purchases', addCustomerPurchase);
+router.post('/bulk', requireRoles(...moneyRoles), bulkImportCustomers);
+router.get('/phone/:phone', requireRoles(...moneyRoles), getCustomerByPhone);
 
-// ========== CUSTOMER DOCUMENTS ==========
-router.post('/:id/documents', addCustomerDocument);
-router.delete('/:id/documents/:docId', deleteCustomerDocument);
+router.get('/:id/purchases', requireRoles(...deskRoles), getCustomerPurchases);
+router.post('/:id/purchases', requireRoles(...moneyRoles), addCustomerPurchase);
+router.post('/:id/orders', requireRoles(...deskRoles), addCustomerOrder);
 
-// ========== MAIN CRUD ROUTES ==========
-router.get('/', getAllCustomers);
-router.get('/:id', getCustomerById);
-router.post('/', createCustomer);
-router.put('/:id', updateCustomer);
-router.delete('/:id', deleteCustomer);
+router.post('/:id/documents', requireRoles(...deskRoles), addCustomerDocument);
+router.delete('/:id/documents/:docId', requireRoles(...moneyRoles), deleteCustomerDocument);
+
+router.get('/', requireRoles(...deskRoles), getAllCustomers);
+router.get('/:id', requireRoles(...deskRoles), getCustomerById);
+router.post('/', requireRoles(...deskRoles), createCustomer);
+router.put('/:id', requireRoles(...moneyRoles), updateCustomer);
+router.delete('/:id', requireRoles(ROLES.ADMIN), deleteCustomer);
 
 module.exports = router;

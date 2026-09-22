@@ -1,7 +1,31 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap');
+
+:root {
+  --auth-ink: #0f2f2c;
+  --auth-teal: #0f766e;
+  --auth-amber: #d97706;
+  --auth-sand: #e8f2ef;
+  --app-font: 'Outfit', system-ui, -apple-system, sans-serif;
+}
+
+html,
+body,
+#root,
+button,
+input,
+select,
+textarea {
+  font-family: var(--app-font);
+}
 
 body {
   @apply bg-gray-100;
+}
+
+/* Keep class for hierarchy; same typeface as the rest of the app */
+.auth-display {
+  font-family: var(--app-font);
 }
 
 .btn-primary {
@@ -49,4 +73,9 @@ body {
     opacity: 1;
     transform: scale(1.12);
   }
+}
+
+@keyframes floatSlow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
 }

@@ -1,13 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  FiSearch, FiShoppingCart, FiPlus, FiMinus, 
+import {
+  FiShoppingCart, FiPlus, FiMinus,
   FiTrash2, FiDollarSign, FiUser, FiPhone,
   FiArrowLeft, FiCheck
 } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import axios from 'axios';
 import { canSeeMoney } from '../auth/roles';
+import {
+  PageShell,
+  PageHero,
+  Panel,
+  SoftButton,
+  SearchInput,
+  EmptyState
+} from '../components/ui/PageChrome';
+
+const inputClass =
+  'w-full pl-9 pr-3 py-2 text-sm rounded-xl border border-slate-200 bg-slate-50/70 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/30';
 
 const Sales = () => {
   const navigate = useNavigate();
@@ -45,9 +56,8 @@ const Sales = () => {
     loadStoreProducts();
   }, []);
 
-  // Filter products based on search
   useEffect(() => {
-    const filtered = products.filter(product =>
+    const filtered = products.filter((product) =>
       product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       product.productId.toString().includes(searchTerm) ||
       product.category.toLowerCase().includes(searchTerm.toLowerCase())
@@ -55,16 +65,15 @@ const Sales = () => {
     setFilteredProducts(filtered);
   }, [searchTerm, products]);
 
-  // Add to cart
   const addToCart = (product) => {
-    const existingItem = cart.find(item => item.id === product.id);
-    
+    const existingItem = cart.find((item) => item.id === product.id);
+
     if (existingItem) {
       if (existingItem.quantity + quantity > product.stock) {
         toast.error(`Only ${product.stock} items available in stock`);
         return;
       }
-      setCart(cart.map(item =>
+      setCart(cart.map((item) =>
         item.id === product.id
           ? { ...item, quantity: item.quantity + quantity }
           : item
@@ -76,15 +85,14 @@ const Sales = () => {
       }
       setCart([...cart, { ...product, quantity }]);
     }
-    
+
     toast.success(`${product.name} added to cart`);
     setSelectedProduct(null);
     setQuantity(1);
   };
 
-  // Update cart item quantity
   const updateQuantity = (id, newQuantity) => {
-    const product = products.find(p => p.id === id);
+    const product = products.find((p) => p.id === id);
     if (newQuantity > product.stock) {
       toast.error(`Only ${product.stock} items available`);
       return;
@@ -93,35 +101,31 @@ const Sales = () => {
       removeFromCart(id);
       return;
     }
-    setCart(cart.map(item =>
+    setCart(cart.map((item) =>
       item.id === id ? { ...item, quantity: newQuantity } : item
     ));
   };
 
-  // Remove from cart
   const removeFromCart = (id) => {
-    setCart(cart.filter(item => item.id !== id));
+    setCart(cart.filter((item) => item.id !== id));
     toast.success('Item removed from cart');
   };
 
-  // Calculate totals
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const tax = subtotal * 0.15; // 15% tax
+  const tax = subtotal * 0.15;
   const total = subtotal + tax;
 
-  // Handle proceed to payment
   const handleProceedToPayment = () => {
     if (cart.length === 0) {
       toast.error('Cart is empty');
       return;
     }
-    
+
     if (!buyerInfo.fullName) {
       toast.error('Please enter buyer name');
       return;
     }
 
-    // Navigate to payment page with sale data
     navigate('/store/payment', {
       state: {
         cart,
@@ -135,298 +139,308 @@ const Sales = () => {
     });
   };
 
-  // Handle record sale (matching your screenshot's "Record S" buttons)
   const handleRecordSale = (product) => {
     setSelectedProduct(product);
     setQuantity(1);
   };
 
   return (
-    <div className="p-6">
-      {/* Header */}
-      <div className="flex items-center mb-6">
-        <button
-          onClick={() => navigate('/store')}
-          className="mr-4 p-2 hover:bg-gray-100 rounded-lg transition"
-        >
-          <FiArrowLeft size={20} />
-        </button>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">Store Management System</h1>
-          <p className="text-gray-600">Multi-Sales / Point of Sale</p>
-        </div>
-      </div>
+    <PageShell>
+      <PageHero
+        tone="teal"
+        eyebrow="Point of sale"
+        title="New sale"
+        subtitle="Multi-sales / store floor checkout"
+        actions={
+          <SoftButton
+            onClick={() => navigate('/store')}
+            className="bg-white/15 hover:bg-white/25 text-white"
+          >
+            <FiArrowLeft size={14} /> Back
+          </SoftButton>
+        }
+      />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - Products List */}
-        <div className="lg:col-span-2">
-          {/* Search Bar */}
-          <div className="bg-white rounded-lg shadow mb-6">
-            <div className="p-4">
-              <div className="relative">
-                <FiSearch className="absolute left-3 top-3 text-gray-400" size={18} />
-                <input
-                  type="text"
-                  placeholder="Search products..."
-                  className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
+        <div className="lg:col-span-2 space-y-3 sm:space-y-4">
+          <Panel title="Products" action={
+            <div className="w-full sm:w-56">
+              <SearchInput
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search products…"
+              />
             </div>
-          </div>
-
-          {/* Products Table - Matching your screenshot */}
-          <div className="bg-white rounded-lg shadow">
+          } bodyClassName="p-0 sm:p-0">
             <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50">
+              <table className="w-full min-w-[640px]">
+                <thead className="bg-slate-50 text-[10px] sm:text-xs uppercase text-slate-500">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">No</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Product Image</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Product Name</th>
-                    {showMoney && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Price</th>}
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stock</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Restock Level</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Unit</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
+                    <th className="px-3 py-2 text-left">#</th>
+                    <th className="px-3 py-2 text-left">Img</th>
+                    <th className="px-3 py-2 text-left">ID</th>
+                    <th className="px-3 py-2 text-left">Category</th>
+                    <th className="px-3 py-2 text-left">Product</th>
+                    {showMoney && <th className="px-3 py-2 text-left">Price</th>}
+                    <th className="px-3 py-2 text-left">Stock</th>
+                    <th className="px-3 py-2 text-left">Restock</th>
+                    <th className="px-3 py-2 text-left">Unit</th>
+                    <th className="px-3 py-2 text-left">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody className="divide-y divide-slate-100">
                   {filteredProducts.map((product, index) => (
-                    <tr key={product.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm">{index + 1}</td>
-                      <td className="px-4 py-3">
+                    <tr key={product.id} className="hover:bg-teal-50/40">
+                      <td className="px-3 py-2 text-xs">{index + 1}</td>
+                      <td className="px-3 py-2">
                         {product.image ? (
-                          <img src={product.image} alt={product.name} className="w-10 h-10 object-cover rounded" />
+                          <img
+                            src={product.image}
+                            alt={product.name}
+                            className="w-8 h-8 object-cover rounded-md"
+                          />
                         ) : (
-                          <div className="w-10 h-10 bg-gray-200 rounded flex items-center justify-center text-gray-400 text-xs">
-                            No img
+                          <div className="w-8 h-8 bg-slate-100 rounded-md flex items-center justify-center text-slate-400 text-[9px]">
+                            —
                           </div>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-sm">{product.productId}</td>
-                      <td className="px-4 py-3 text-sm">{product.category}</td>
-                      <td className="px-4 py-3 text-sm font-medium">{product.name}</td>
-                      {showMoney && <td className="px-4 py-3 text-sm">ETB {product.price.toLocaleString()}</td>}
-                      <td className="px-4 py-3">
-                        <span className={`px-2 py-1 text-xs rounded-full ${
-                          product.stock <= product.restockLevel 
-                            ? 'bg-red-100 text-red-800' 
-                            : 'bg-green-100 text-green-800'
-                        }`}>
+                      <td className="px-3 py-2 text-xs">{product.productId}</td>
+                      <td className="px-3 py-2 text-xs truncate max-w-[80px]">{product.category}</td>
+                      <td className="px-3 py-2 text-xs font-medium truncate max-w-[120px]">
+                        {product.name}
+                      </td>
+                      {showMoney && (
+                        <td className="px-3 py-2 text-xs">
+                          ETB {product.price.toLocaleString()}
+                        </td>
+                      )}
+                      <td className="px-3 py-2">
+                        <span
+                          className={`px-1.5 py-0.5 text-[10px] rounded-md ${
+                            product.stock <= product.restockLevel
+                              ? 'bg-rose-100 text-rose-800'
+                              : 'bg-emerald-100 text-emerald-800'
+                          }`}
+                        >
                           {product.stock}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-sm">{product.restockLevel}</td>
-                      <td className="px-4 py-3 text-sm">{product.unit}</td>
-                      <td className="px-4 py-3">
-                        <button
+                      <td className="px-3 py-2 text-xs">{product.restockLevel}</td>
+                      <td className="px-3 py-2 text-xs">{product.unit}</td>
+                      <td className="px-3 py-2">
+                        <SoftButton
                           onClick={() => handleRecordSale(product)}
-                          className="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 transition"
+                          className="bg-teal-600 text-white hover:bg-teal-700"
                         >
-                          Record S
-                        </button>
+                          Record
+                        </SoftButton>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          </div>
+          </Panel>
         </div>
 
-        {/* Right Column - Cart & Checkout */}
-        <div className="lg:col-span-1">
-          {/* Buyer Information */}
-          <div className="bg-white rounded-lg shadow mb-6">
-            <div className="p-4 border-b">
-              <h2 className="font-semibold">Buyer Information</h2>
-            </div>
-            <div className="p-4 space-y-4">
+        <div className="space-y-3 sm:space-y-4">
+          <Panel title="Buyer">
+            <div className="space-y-3">
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Full Name</label>
+                <label className="block text-[10px] sm:text-xs uppercase tracking-wide text-slate-500 mb-1">
+                  Full Name
+                </label>
                 <div className="relative">
-                  <FiUser className="absolute left-3 top-3 text-gray-400" size={16} />
+                  <FiUser className="absolute left-3 top-2.5 text-slate-400" size={14} />
                   <input
                     type="text"
                     value={buyerInfo.fullName}
-                    onChange={(e) => setBuyerInfo({...buyerInfo, fullName: e.target.value})}
-                    className="w-full pl-10 pr-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onChange={(e) => setBuyerInfo({ ...buyerInfo, fullName: e.target.value })}
+                    className={inputClass}
                     placeholder="Enter full name"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Phone Number</label>
+                <label className="block text-[10px] sm:text-xs uppercase tracking-wide text-slate-500 mb-1">
+                  Phone
+                </label>
                 <div className="relative">
-                  <FiPhone className="absolute left-3 top-3 text-gray-400" size={16} />
+                  <FiPhone className="absolute left-3 top-2.5 text-slate-400" size={14} />
                   <input
                     type="text"
                     value={buyerInfo.phoneNumber}
-                    onChange={(e) => setBuyerInfo({...buyerInfo, phoneNumber: e.target.value})}
-                    className="w-full pl-10 pr-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onChange={(e) => setBuyerInfo({ ...buyerInfo, phoneNumber: e.target.value })}
+                    className={inputClass}
                     placeholder="Enter phone number"
                   />
                 </div>
               </div>
             </div>
-          </div>
+          </Panel>
 
-          {/* Cart */}
-          <div className="bg-white rounded-lg shadow mb-6">
-            <div className="p-4 border-b flex justify-between items-center">
-              <h2 className="font-semibold">Shopping Cart</h2>
-              <span className="text-sm text-gray-500">{cart.length} items</span>
-            </div>
-            
-            <div className="p-4 max-h-96 overflow-y-auto">
+          <Panel
+            title="Cart"
+            action={<span className="text-[10px] text-slate-500">{cart.length} items</span>}
+          >
+            <div className="max-h-72 overflow-y-auto">
               {cart.length > 0 ? (
-                <div className="space-y-4">
+                <div className="space-y-2.5">
                   {cart.map((item) => (
-                    <div key={item.id} className="flex items-center justify-between border-b pb-3">
-                      <div className="flex-1">
-                        <p className="font-medium text-sm">{item.name}</p>
+                    <div
+                      key={item.id}
+                      className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-xs truncate">{item.name}</p>
                         {showMoney ? (
-                          <p className="text-xs text-gray-500">ETB {item.price.toLocaleString()} each</p>
+                          <p className="text-[10px] text-slate-500">
+                            ETB {item.price.toLocaleString()} each
+                          </p>
                         ) : (
-                          <p className="text-xs text-gray-500">Qty {item.quantity}</p>
+                          <p className="text-[10px] text-slate-500">Qty {item.quantity}</p>
                         )}
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <button
+                      <div className="flex items-center gap-1 shrink-0">
+                        <SoftButton
                           onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                          className="p-1 hover:bg-gray-100 rounded"
+                          className="p-1 hover:bg-slate-100"
                         >
-                          <FiMinus size={16} />
-                        </button>
-                        <span className="w-8 text-center">{item.quantity}</span>
-                        <button
+                          <FiMinus size={12} />
+                        </SoftButton>
+                        <span className="w-6 text-center text-xs">{item.quantity}</span>
+                        <SoftButton
                           onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                          className="p-1 hover:bg-gray-100 rounded"
+                          className="p-1 hover:bg-slate-100"
                         >
-                          <FiPlus size={16} />
-                        </button>
-                        <button
+                          <FiPlus size={12} />
+                        </SoftButton>
+                        <SoftButton
                           onClick={() => removeFromCart(item.id)}
-                          className="p-1 text-red-500 hover:bg-red-50 rounded ml-2"
+                          className="p-1 text-rose-500 hover:bg-rose-50 ml-0.5"
                         >
-                          <FiTrash2 size={16} />
-                        </button>
+                          <FiTrash2 size={12} />
+                        </SoftButton>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <FiShoppingCart size={48} className="mx-auto mb-3 text-gray-300" />
-                  <p>Cart is empty</p>
-                </div>
+                <EmptyState>
+                  <FiShoppingCart size={28} className="mx-auto mb-2 text-slate-300" />
+                  Cart is empty
+                </EmptyState>
               )}
             </div>
 
             {cart.length > 0 && (
-              <div className="p-4 border-t bg-gray-50 space-y-3">
+              <div className="mt-3 pt-3 border-t border-slate-100 space-y-2">
                 <div>
-                  <label className="block text-sm text-gray-600 mb-1">Order deadline</label>
+                  <label className="block text-[10px] sm:text-xs uppercase tracking-wide text-slate-500 mb-1">
+                    Order deadline
+                  </label>
                   <input
                     type="date"
                     value={deadline}
                     onChange={(e) => setDeadline(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 bg-slate-50/70 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/30"
                   />
                 </div>
                 {showMoney && (
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Subtotal:</span>
+                  <div className="space-y-1 text-xs">
+                    <div className="flex justify-between text-slate-600">
+                      <span>Subtotal</span>
                       <span>ETB {subtotal.toLocaleString()}</span>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Tax (15%):</span>
+                    <div className="flex justify-between text-slate-600">
+                      <span>Tax (15%)</span>
                       <span>ETB {tax.toLocaleString()}</span>
                     </div>
-                    <div className="flex justify-between font-bold text-lg pt-2 border-t">
-                      <span>Total:</span>
-                      <span className="text-green-600">ETB {total.toLocaleString()}</span>
+                    <div className="flex justify-between font-bold text-sm pt-1.5 border-t border-slate-100">
+                      <span>Total</span>
+                      <span className="text-emerald-600">ETB {total.toLocaleString()}</span>
                     </div>
                   </div>
                 )}
               </div>
             )}
-          </div>
+          </Panel>
 
-          {/* Checkout Button */}
           {cart.length > 0 && (
-            <button
+            <SoftButton
               onClick={handleProceedToPayment}
-              className="w-full bg-green-500 text-white py-3 rounded-lg hover:bg-green-600 transition flex items-center justify-center font-semibold"
+              className="w-full py-2.5 bg-emerald-600 text-white hover:bg-emerald-700 font-semibold"
             >
-              <FiDollarSign className="mr-2" size={20} />
+              <FiDollarSign size={14} />
               {showMoney ? 'Proceed to Payment' : 'Complete order'}
-            </button>
+            </SoftButton>
           )}
         </div>
       </div>
 
-      {/* Quick Add Modal */}
       {selectedProduct && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-96">
-            <h3 className="text-lg font-semibold mb-4">Add to Cart</h3>
-            <p className="mb-2">{selectedProduct.name}</p>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-4 sm:p-5 w-full max-w-sm shadow-xl">
+            <h3 className="text-sm font-semibold text-slate-800 mb-2">Add to Cart</h3>
+            <p className="text-sm mb-1 truncate">{selectedProduct.name}</p>
             {showMoney && (
-              <p className="text-sm text-gray-500 mb-4">Price: ETB {selectedProduct.price.toLocaleString()}</p>
+              <p className="text-xs text-slate-500 mb-3">
+                Price: ETB {selectedProduct.price.toLocaleString()}
+              </p>
             )}
-            
+
             <div className="mb-4">
-              <label className="block text-sm text-gray-600 mb-2">Quantity</label>
+              <label className="block text-[10px] uppercase tracking-wide text-slate-500 mb-1">
+                Quantity
+              </label>
               <div className="flex items-center">
                 <button
+                  type="button"
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className="p-2 border rounded-l-lg hover:bg-gray-100"
+                  className="p-2 border border-slate-200 rounded-l-lg hover:bg-slate-50"
                 >
-                  <FiMinus size={16} />
+                  <FiMinus size={14} />
                 </button>
                 <input
                   type="number"
                   value={quantity}
                   onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                  className="w-20 text-center py-2 border-t border-b"
+                  className="w-16 text-center py-2 border-t border-b border-slate-200 text-sm"
                   min="1"
                   max={selectedProduct.stock}
                 />
                 <button
+                  type="button"
                   onClick={() => setQuantity(Math.min(selectedProduct.stock, quantity + 1))}
-                  className="p-2 border rounded-r-lg hover:bg-gray-100"
+                  className="p-2 border border-slate-200 rounded-r-lg hover:bg-slate-50"
                 >
-                  <FiPlus size={16} />
+                  <FiPlus size={14} />
                 </button>
               </div>
-              <p className="text-xs text-gray-500 mt-1">Available stock: {selectedProduct.stock}</p>
+              <p className="text-[10px] text-slate-500 mt-1">
+                Available: {selectedProduct.stock}
+              </p>
             </div>
 
-            <div className="flex justify-end space-x-3">
-              <button
+            <div className="flex justify-end gap-1.5">
+              <SoftButton
                 onClick={() => setSelectedProduct(null)}
-                className="px-4 py-2 border rounded-lg hover:bg-gray-100"
+                className="border border-slate-200 hover:bg-slate-50"
               >
                 Cancel
-              </button>
-              <button
+              </SoftButton>
+              <SoftButton
                 onClick={() => addToCart(selectedProduct)}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center"
+                className="bg-teal-600 text-white hover:bg-teal-700"
               >
-                <FiCheck className="mr-2" />
-                Add to Cart
-              </button>
+                <FiCheck size={12} /> Add
+              </SoftButton>
             </div>
           </div>
         </div>
       )}
-    </div>
+    </PageShell>
   );
 };
 

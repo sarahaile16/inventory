@@ -33,21 +33,22 @@ const publicUser = (user) => ({
 
 // ========== HELPER FUNCTIONS ==========
 const generateToken = (user) => {
+  const { jwtSecret } = require('../middleware/auth');
   return jwt.sign(
-    { 
-      id: user._id || user.id, 
-      username: user.username, 
-      role: user.role 
+    {
+      id: user._id || user.id,
+      username: user.username,
+      role: user.role
     },
-    process.env.JWT_SECRET || 'your-secret-key',
-    { expiresIn: '1h' }
+    jwtSecret(),
+    { expiresIn: process.env.JWT_EXPIRE || '1h' }
   );
 };
 
 const setCookieOptions = () => ({
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
-  sameSite: 'strict',
+  sameSite: 'lax',
   maxAge: 60 * 60 * 1000,
   path: '/'
 });
@@ -174,6 +175,7 @@ router.post('/login', async (req, res) => {
       res.cookie('token', token, setCookieOptions());
       return res.json({
         success: true,
+        token,
         user: publicUser(demo)
       });
     }
@@ -198,6 +200,7 @@ router.post('/login', async (req, res) => {
     
     res.json({
       success: true,
+      token,
       user: publicUser(user)
     });
     
@@ -220,14 +223,15 @@ router.post('/logout', (req, res) => {
 
 // ========== VERIFY TOKEN ROUTE ==========
 router.get('/verify', (req, res) => {
-  const token = req.cookies.token;
+  const token = req.cookies.token || (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
   
   if (!token) {
     return res.status(401).json({ valid: false, message: 'No token provided' });
   }
   
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    const { jwtSecret } = require('../middleware/auth');
+    const decoded = jwt.verify(token, jwtSecret());
     res.json({ 
       valid: true, 
       user: {
@@ -275,7 +279,7 @@ router.get('/me', async (req, res) => {
   }
 });
 
-router.get('/users', async (req, res) => {
+router.get('/users', require('../middleware/auth').requireAuth, require('../middleware/auth').requireRoles('admin'), async (req, res) => {
   try {
     const dbUsers = await User.find().select('-password').sort({ createdAt: -1 });
     if (dbUsers.length > 0) {
@@ -288,7 +292,7 @@ router.get('/users', async (req, res) => {
   }
 });
 
-router.put('/users/:id', async (req, res) => {
+router.put('/users/:id', require('../middleware/auth').requireAuth, require('../middleware/auth').requireRoles('admin'), async (req, res) => {
   try {
     const nextRole = String(req.body.role || '').trim().toLowerCase();
     if (!ALLOWED_ROLES.includes(nextRole)) {
@@ -321,6 +325,300 @@ router.put('/users/:id', async (req, res) => {
   } catch (error) {
     console.error('Update user role error:', error);
     res.status(500).json({ message: 'Server error while updating role' });
+  }
+});
+
+// ========== FORGOT / RESET PASSWORD ==========
+const crypto = require('crypto');
+const memoryResets = new Map(); // key: username|email lower → { code, expires, accountId }
+
+const makeResetCode = () => String(crypto.randomInt(100000, 999999));
+const normalizePhoneDigits = (phone) => String(phone || '').replace(/\D/g, '');
+
+const findDbUserByLogin = async (login) => {
+  const value = String(login || '').trim();
+  if (!value) return null;
+  return User.findOne({
+    $or: [{ email: value.toLowerCase() }, { username: value }]
+  });
+};
+
+const findMemoryAccount = (login) => {
+  const value = String(login || '').trim().toLowerCase();
+  return memoryAccounts.find(
+    (a) =>
+      String(a.email || '').toLowerCase() === value ||
+      String(a.username || '').toLowerCase() === value
+  );
+};
+
+const storeMemoryReset = (account, code) => {
+  const key = String(account.username || account.email).toLowerCase();
+  memoryResets.set(key, {
+    code: String(code),
+    expires: Date.now() + 15 * 60 * 1000,
+    accountId: account.id
+  });
+  if (account.email) {
+    memoryResets.set(String(account.email).toLowerCase(), memoryResets.get(key));
+  }
+};
+
+const verifyMemoryReset = (login, code) => {
+  const value = String(login || '').trim().toLowerCase();
+  const entry = memoryResets.get(value);
+  if (!entry) return null;
+  if (Date.now() > entry.expires) {
+    memoryResets.delete(value);
+    return null;
+  }
+  if (String(entry.code) !== String(code).trim()) return null;
+  return memoryAccounts.find((a) => a.id === entry.accountId) || null;
+};
+
+/** Request reset via email — sends a 6-digit code */
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const login = String(req.body.email || req.body.username || '').trim();
+    if (!login) {
+      return res.status(400).json({ success: false, message: 'Enter your email or username' });
+    }
+
+    const generic = {
+      success: true,
+      message: 'If an account exists for that email/username, a reset code was sent.',
+      method: 'email'
+    };
+
+    const code = makeResetCode();
+    const { sendPasswordResetCode, hasRealSmtpConfig } = require('../utils/emailService');
+
+    const dbUser = await findDbUserByLogin(login);
+    if (dbUser) {
+      dbUser.passwordResetToken = code;
+      dbUser.passwordResetExpires = new Date(Date.now() + 15 * 60 * 1000);
+      await dbUser.save();
+
+      if (!dbUser.email) {
+        return res.json({
+          ...generic,
+          emailed: false,
+          hint: 'No email on this account. Use the phone option instead.'
+        });
+      }
+
+      const mail = await sendPasswordResetCode({
+        to: dbUser.email,
+        fullName: dbUser.fullName,
+        username: dbUser.username,
+        code
+      });
+
+      return res.json({
+        ...generic,
+        emailed: Boolean(mail.sent),
+        emailError: mail.sent ? undefined : mail.error,
+        previewUrl: mail.previewUrl || undefined,
+        smtpReady: hasRealSmtpConfig()
+      });
+    }
+
+    const demo = findMemoryAccount(login);
+    if (demo) {
+      storeMemoryReset(demo, code);
+      if (demo.email) {
+        const mail = await sendPasswordResetCode({
+          to: demo.email,
+          fullName: demo.fullName,
+          username: demo.username,
+          code
+        });
+        // Dev fallback: if SMTP fails, include code so local testing still works
+        return res.json({
+          ...generic,
+          emailed: Boolean(mail.sent),
+          emailError: mail.sent ? undefined : mail.error,
+          previewUrl: mail.previewUrl || undefined,
+          smtpReady: hasRealSmtpConfig(),
+          ...(!mail.sent && process.env.NODE_ENV !== 'production'
+            ? { devCode: code, hint: 'Email not sent (SMTP). Dev code shown for testing only.' }
+            : {})
+        });
+      }
+    }
+
+    // Always generic — do not reveal whether account exists
+    return res.json(generic);
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ success: false, message: 'Could not process password reset request' });
+  }
+});
+
+/**
+ * Alternate: prove identity with username + registered phone,
+ * then receive a reset code (emailed when possible).
+ */
+router.post('/forgot-password-phone', async (req, res) => {
+  try {
+    const username = String(req.body.username || '').trim();
+    const phone = normalizePhoneDigits(req.body.phone);
+    if (!username || phone.length < 9) {
+      return res.status(400).json({
+        success: false,
+        message: 'Enter your username and the phone number on your account'
+      });
+    }
+
+    const code = makeResetCode();
+    const { sendPasswordResetCode, hasRealSmtpConfig } = require('../utils/emailService');
+
+    const dbUser = await User.findOne({ username });
+    if (dbUser && normalizePhoneDigits(dbUser.phone) === phone) {
+      dbUser.passwordResetToken = code;
+      dbUser.passwordResetExpires = new Date(Date.now() + 15 * 60 * 1000);
+      await dbUser.save();
+
+      let emailed = false;
+      let emailError;
+      let previewUrl;
+      if (dbUser.email) {
+        const mail = await sendPasswordResetCode({
+          to: dbUser.email,
+          fullName: dbUser.fullName,
+          username: dbUser.username,
+          code
+        });
+        emailed = Boolean(mail.sent);
+        emailError = mail.sent ? undefined : mail.error;
+        previewUrl = mail.previewUrl || undefined;
+      }
+
+      return res.json({
+        success: true,
+        message: emailed
+          ? 'Phone verified. A reset code was sent to your email.'
+          : 'Phone verified. Use the code below to set a new password.',
+        method: 'phone',
+        verified: true,
+        emailed,
+        emailError,
+        previewUrl,
+        smtpReady: hasRealSmtpConfig(),
+        // Phone path already proved ownership — return code so they can continue without SMS
+        resetCode: code
+      });
+    }
+
+    const demo = memoryAccounts.find(
+      (a) =>
+        String(a.username).toLowerCase() === username.toLowerCase() &&
+        normalizePhoneDigits(a.phone) === phone
+    );
+    if (demo) {
+      storeMemoryReset(demo, code);
+      let emailed = false;
+      if (demo.email) {
+        const mail = await sendPasswordResetCode({
+          to: demo.email,
+          fullName: demo.fullName,
+          username: demo.username,
+          code
+        });
+        emailed = Boolean(mail.sent);
+      }
+      return res.json({
+        success: true,
+        message: emailed
+          ? 'Phone verified. A reset code was also emailed.'
+          : 'Phone verified. Use the code to set a new password.',
+        method: 'phone',
+        verified: true,
+        emailed,
+        resetCode: code
+      });
+    }
+
+    return res.status(400).json({
+      success: false,
+      message: 'Username and phone do not match our records'
+    });
+  } catch (error) {
+    console.error('Forgot password phone error:', error);
+    res.status(500).json({ success: false, message: 'Could not verify phone for reset' });
+  }
+});
+
+/** Set new password with email/username + code */
+router.post('/reset-password', async (req, res) => {
+  try {
+    const login = String(req.body.email || req.body.username || '').trim();
+    const code = String(req.body.code || req.body.resetCode || '').trim();
+    const newPassword = String(req.body.newPassword || req.body.password || '');
+
+    if (!login || !code || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email/username, reset code, and new password are required'
+      });
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters'
+      });
+    }
+
+    const dbUser = await findDbUserByLogin(login);
+    if (dbUser) {
+      const tokenOk =
+        dbUser.passwordResetToken &&
+        String(dbUser.passwordResetToken) === code &&
+        dbUser.passwordResetExpires &&
+        dbUser.passwordResetExpires > new Date();
+
+      if (!tokenOk) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid or expired reset code'
+        });
+      }
+
+      dbUser.password = newPassword;
+      dbUser.passwordResetToken = undefined;
+      dbUser.passwordResetExpires = undefined;
+      await dbUser.save();
+
+      return res.json({
+        success: true,
+        message: 'Password updated. You can sign in with your new password.'
+      });
+    }
+
+    const demo = verifyMemoryReset(login, code) || (() => {
+      // Also allow matching by username when code was stored under username key
+      const byUser = findMemoryAccount(login);
+      if (!byUser) return null;
+      return verifyMemoryReset(byUser.username, code) || verifyMemoryReset(byUser.email, code);
+    })();
+
+    if (demo) {
+      demo.password = newPassword;
+      memoryResets.delete(String(demo.username).toLowerCase());
+      if (demo.email) memoryResets.delete(String(demo.email).toLowerCase());
+      return res.json({
+        success: true,
+        message: 'Password updated. You can sign in with your new password.'
+      });
+    }
+
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid or expired reset code'
+    });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ success: false, message: 'Could not reset password' });
   }
 });
 

@@ -1,18 +1,4 @@
-let products = [
-  {
-    _id: 1,
-    productId: '10019',
-    name: 'GODMIDDAG (18 Piece)',
-    category: 'Dinnerware',
-    price: 3900,
-    stock: 15,
-    restockLevel: 3,
-    unit: 'KIT',
-    location: 'Addis Abeba, Gerji - Main Showroom',
-    image: null,
-    createdAt: new Date().toISOString()
-  }
-];
+let products = [];
 
 // @desc    Get all products
 // @route   GET /api/products

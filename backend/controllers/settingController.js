@@ -41,14 +41,20 @@ let customFields = [
 ];
 
 let categories = [
-  'Dinnerware',
-  'Plates',
-  'Salad & Side Plates',
-  'Bowls',
-  'Deep Plates'
+  'Sofas & Couches',
+  'Beds & Mattresses',
+  'Tables',
+  'Chairs & Seating',
+  'Cabinets & Wardrobes',
+  'Shelves & Storage',
+  'Dining Sets',
+  'Office Furniture',
+  'Outdoor Furniture',
+  'Kids Furniture',
+  'Decor & Accessories'
 ];
 
-let units = ['KIT', 'PCS', 'SET'];
+let units = ['PCS', 'SET', 'UNIT'];
 
 let colors = ['Blue', 'Red', 'Green', 'Black', 'White'];
 

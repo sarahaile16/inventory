@@ -1,13 +1,32 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  FiSettings, FiUser, FiUsers, FiDatabase, 
-  FiList, FiTag, FiSliders, FiShield,
-  FiBell, FiMail, FiLock, FiGlobe,
-  FiChevronRight, FiSave
+import {
+  FiSettings, FiUser, FiUsers, FiDatabase,
+  FiList, FiTag, FiShield, FiBell, FiChevronRight, FiSave
 } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
-import axios from 'axios';
+import {
+  PageShell,
+  PageHero,
+  Panel,
+  SoftButton,
+  HeroLink
+} from '../components/ui/PageChrome';
+
+const inputClass =
+  'w-full px-3 py-2 text-sm rounded-xl border border-slate-200 bg-slate-50/70 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/30';
+
+const Toggle = ({ checked, onChange }) => (
+  <label className="relative inline-flex items-center cursor-pointer shrink-0">
+    <input
+      type="checkbox"
+      checked={checked}
+      onChange={onChange}
+      className="sr-only peer"
+    />
+    <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-teal-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-teal-600" />
+  </label>
+);
 
 const Settings = () => {
   const [activeTab, setActiveTab] = useState('general');
@@ -44,7 +63,6 @@ const Settings = () => {
     }
   });
 
-  // Mock data for custom fields based on screenshot #13
   const [customFields, setCustomFields] = useState([
     { id: 1, name: 'Batch number', type: 'text', required: true },
     { id: 2, name: 'Unit', type: 'options', options: ['KIT', 'PCS', 'SET'], required: true },
@@ -54,16 +72,20 @@ const Settings = () => {
     { id: 6, name: 'PART NUMBER', type: 'text', required: false }
   ]);
 
-  // Mock data for categories based on screenshot #13
   const [categories, setCategories] = useState([
-    'Dinnerware',
-    'Plates',
-    'Salad & Side Plates',
-    'Bowls',
-    'Deep Plates'
+    'Sofas & Couches',
+    'Beds & Mattresses',
+    'Tables',
+    'Chairs & Seating',
+    'Cabinets & Wardrobes',
+    'Shelves & Storage',
+    'Dining Sets',
+    'Office Furniture',
+    'Outdoor Furniture',
+    'Kids Furniture',
+    'Decor & Accessories'
   ]);
 
-  // Mock data for colors
   const [colors, setColors] = useState([
     'Blue',
     'Red',
@@ -79,8 +101,6 @@ const Settings = () => {
 
   const handleSaveSettings = () => {
     setLoading(true);
-    
-    // Simulate API call
     setTimeout(() => {
       toast.success('Settings saved successfully');
       setLoading(false);
@@ -111,555 +131,470 @@ const Settings = () => {
   const tabs = [
     { id: 'general', label: 'General', icon: FiSettings },
     { id: 'users', label: 'Users', icon: FiUsers },
-    { id: 'fields', label: 'Manage Fields', icon: FiDatabase },
-    { id: 'options', label: 'Manage Options', icon: FiList },
-    { id: 'notifications', label: 'Notifications', icon: FiBell },
+    { id: 'fields', label: 'Fields', icon: FiDatabase },
+    { id: 'options', label: 'Options', icon: FiList },
+    { id: 'notifications', label: 'Alerts', icon: FiBell },
     { id: 'security', label: 'Security', icon: FiShield },
     { id: 'inventory', label: 'Inventory', icon: FiTag }
   ];
 
   return (
-    <div className="p-6">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Settings</h1>
-        <p className="text-gray-600">Manage your system preferences and configurations</p>
-      </div>
+    <PageShell>
+      <PageHero
+        tone="slate"
+        eyebrow="System"
+        title="Settings"
+        subtitle="Manage preferences and configurations"
+        actions={
+          <HeroLink to="/settings/add-user" primary>
+            <FiUser size={12} /> Add User
+          </HeroLink>
+        }
+      />
 
-      <div className="flex flex-col lg:flex-row gap-6">
-        {/* Sidebar Navigation - Matching screenshot #12 */}
-        <div className="lg:w-64 flex-shrink-0">
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <div className="p-4 bg-gray-50 border-b">
-              <h2 className="font-semibold">Management</h2>
-            </div>
-            <nav className="p-2">
+      <div className="flex flex-col lg:flex-row gap-3 sm:gap-4">
+        <div className="lg:w-52 shrink-0">
+          <Panel title="Management" bodyClassName="p-1.5 sm:p-2">
+            <nav className="flex lg:flex-col gap-1 overflow-x-auto pb-1 lg:pb-0">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
+                const active = activeTab === tab.id;
                 return (
                   <button
                     key={tab.id}
+                    type="button"
                     onClick={() => setActiveTab(tab.id)}
-                    className={`w-full flex items-center px-4 py-3 rounded-lg text-left transition ${
-                      activeTab === tab.id
-                        ? 'bg-blue-50 text-blue-600'
-                        : 'text-gray-600 hover:bg-gray-50'
+                    className={`flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs text-left whitespace-nowrap transition ${
+                      active
+                        ? 'bg-teal-50 text-teal-700 font-medium'
+                        : 'text-slate-600 hover:bg-slate-50'
                     }`}
                   >
-                    <Icon className="mr-3" size={18} />
+                    <Icon size={14} className="shrink-0" />
                     <span className="flex-1">{tab.label}</span>
-                    <FiChevronRight size={16} className={activeTab === tab.id ? 'text-blue-600' : 'text-gray-400'} />
+                    <FiChevronRight
+                      size={12}
+                      className={`hidden lg:block ${active ? 'text-teal-600' : 'text-slate-300'}`}
+                    />
                   </button>
                 );
               })}
             </nav>
-
-            {/* Add User Button - From screenshot #12 */}
-            <div className="p-4 border-t">
-              <Link
-                to="/settings/add-user"
-                className="flex items-center justify-center px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition"
-              >
-                <FiUser className="mr-2" />
-                Add User
-              </Link>
-            </div>
-          </div>
+          </Panel>
         </div>
 
-        {/* Main Content Area */}
-        <div className="flex-1">
-          <div className="bg-white rounded-lg shadow">
-            {/* Tab Header */}
-            <div className="p-6 border-b">
-              <h2 className="text-xl font-semibold">
-                {tabs.find(t => t.id === activeTab)?.label}
-              </h2>
-            </div>
-
-            {/* Tab Content */}
-            <div className="p-6">
-              {/* General Settings */}
-              {activeTab === 'general' && (
-                <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-gray-700 mb-2">Company Name</label>
-                      <input
-                        type="text"
-                        value={settings.general.companyName}
-                        onChange={(e) => setSettings({
+        <div className="flex-1 min-w-0">
+          <Panel
+            title={tabs.find((t) => t.id === activeTab)?.label}
+            action={
+              <SoftButton
+                onClick={handleSaveSettings}
+                disabled={loading}
+                className={`bg-teal-600 text-white hover:bg-teal-700 ${
+                  loading ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+              >
+                {loading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-white" />
+                    Saving…
+                  </>
+                ) : (
+                  <>
+                    <FiSave size={12} /> Save
+                  </>
+                )}
+              </SoftButton>
+            }
+          >
+            {activeTab === 'general' && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {[
+                  { key: 'companyName', label: 'Company Name', type: 'text' },
+                  { key: 'companyEmail', label: 'Company Email', type: 'email' },
+                  { key: 'companyPhone', label: 'Company Phone', type: 'text' },
+                  { key: 'address', label: 'Address', type: 'text' }
+                ].map((field) => (
+                  <div key={field.key}>
+                    <label className="block text-[10px] sm:text-xs uppercase tracking-wide text-slate-500 mb-1">
+                      {field.label}
+                    </label>
+                    <input
+                      type={field.type}
+                      value={settings.general[field.key]}
+                      onChange={(e) =>
+                        setSettings({
                           ...settings,
-                          general: { ...settings.general, companyName: e.target.value }
-                        })}
-                        className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-gray-700 mb-2">Company Email</label>
-                      <input
-                        type="email"
-                        value={settings.general.companyEmail}
-                        onChange={(e) => setSettings({
-                          ...settings,
-                          general: { ...settings.general, companyEmail: e.target.value }
-                        })}
-                        className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-gray-700 mb-2">Company Phone</label>
-                      <input
-                        type="text"
-                        value={settings.general.companyPhone}
-                        onChange={(e) => setSettings({
-                          ...settings,
-                          general: { ...settings.general, companyPhone: e.target.value }
-                        })}
-                        className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-gray-700 mb-2">Address</label>
-                      <input
-                        type="text"
-                        value={settings.general.address}
-                        onChange={(e) => setSettings({
-                          ...settings,
-                          general: { ...settings.general, address: e.target.value }
-                        })}
-                        className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-gray-700 mb-2">Currency</label>
-                      <select
-                        value={settings.general.currency}
-                        onChange={(e) => setSettings({
-                          ...settings,
-                          general: { ...settings.general, currency: e.target.value }
-                        })}
-                        className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="ETB">ETB - Ethiopian Birr</option>
-                        <option value="USD">USD - US Dollar</option>
-                        <option value="EUR">EUR - Euro</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-gray-700 mb-2">Timezone</label>
-                      <select
-                        value={settings.general.timezone}
-                        onChange={(e) => setSettings({
-                          ...settings,
-                          general: { ...settings.general, timezone: e.target.value }
-                        })}
-                        className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="Africa/Addis_Ababa">Addis Ababa (GMT+3)</option>
-                        <option value="Africa/Nairobi">Nairobi (GMT+3)</option>
-                        <option value="UTC">UTC</option>
-                      </select>
-                    </div>
+                          general: { ...settings.general, [field.key]: e.target.value }
+                        })
+                      }
+                      className={inputClass}
+                    />
                   </div>
-                </div>
-              )}
-
-              {/* Manage Fields - Based on screenshot #13 */}
-              {activeTab === 'fields' && (
+                ))}
                 <div>
-                  <div className="mb-6">
-                    <h3 className="font-semibold mb-4">Custom Fields List</h3>
-                    <div className="space-y-2">
-                      {customFields.map((field) => (
-                        <div key={field.id} className="flex items-center justify-between p-3 border rounded-lg">
-                          <div>
-                            <span className="font-medium">{field.name}</span>
-                            <span className="text-sm text-gray-500 ml-2">– {field.type}</span>
-                            {field.required && (
-                              <span className="ml-2 text-xs bg-red-100 text-red-800 px-2 py-1 rounded">
-                                Required
-                              </span>
-                            )}
-                          </div>
-                          <button className="text-red-500 hover:text-red-700">
-                            Delete
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="border-t pt-6">
-                    <h3 className="font-semibold mb-4">Add New Field</h3>
-                    <div className="flex gap-4">
-                      <input
-                        type="text"
-                        placeholder="Enter Field Name"
-                        className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                      <select className="w-40 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="text">Text</option>
-                        <option value="number">Number</option>
-                        <option value="options">Options</option>
-                        <option value="date">Date</option>
-                      </select>
-                      <button className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600">
-                        Add
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Manage Options - Based on screenshot #13 */}
-              {activeTab === 'options' && (
-                <div className="space-y-8">
-                  {/* Colors */}
-                  <div>
-                    <h3 className="font-semibold mb-4">Colors</h3>
-                    <div className="space-y-2 mb-4">
-                      {colors.map((color, index) => (
-                        <div key={index} className="flex items-center justify-between p-2 border rounded">
-                          <span>{color}</span>
-                          <button
-                            onClick={() => handleDeleteOption('colors', index)}
-                            className="text-red-500 hover:text-red-700"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        placeholder="Add Color"
-                        value={newOption.type === 'colors' ? newOption.value : ''}
-                        onChange={(e) => setNewOption({ type: 'colors', value: e.target.value })}
-                        className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                      <button
-                        onClick={handleAddOption}
-                        className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600"
-                      >
-                        Add
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Categories */}
-                  <div>
-                    <h3 className="font-semibold mb-4">Categories</h3>
-                    <div className="space-y-2 mb-4">
-                      {categories.map((category, index) => (
-                        <div key={index} className="flex items-center justify-between p-2 border rounded">
-                          <span>{category}</span>
-                          <button
-                            onClick={() => handleDeleteOption('categories', index)}
-                            className="text-red-500 hover:text-red-700"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        placeholder="Add Category"
-                        value={newOption.type === 'categories' ? newOption.value : ''}
-                        onChange={(e) => setNewOption({ type: 'categories', value: e.target.value })}
-                        className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                      <button
-                        onClick={handleAddOption}
-                        className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600"
-                      >
-                        Add
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Notifications Settings */}
-              {activeTab === 'notifications' && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-3 border rounded-lg">
-                    <div>
-                      <p className="font-medium">Email Alerts</p>
-                      <p className="text-sm text-gray-500">Receive email notifications</p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input 
-                        type="checkbox" 
-                        checked={settings.notifications.emailAlerts}
-                        onChange={(e) => setSettings({
-                          ...settings,
-                          notifications: { ...settings.notifications, emailAlerts: e.target.checked }
-                        })}
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
-                    </label>
-                  </div>
-
-                  <div className="flex items-center justify-between p-3 border rounded-lg">
-                    <div>
-                      <p className="font-medium">Low Stock Alerts</p>
-                      <p className="text-sm text-gray-500">Get notified when stock is low</p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input 
-                        type="checkbox" 
-                        checked={settings.notifications.lowStockAlerts}
-                        onChange={(e) => setSettings({
-                          ...settings,
-                          notifications: { ...settings.notifications, lowStockAlerts: e.target.checked }
-                        })}
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
-                    </label>
-                  </div>
-
-                  <div className="flex items-center justify-between p-3 border rounded-lg">
-                    <div>
-                      <p className="font-medium">Stock Movement Alerts</p>
-                      <p className="text-sm text-gray-500">Get notified about stock movements</p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input 
-                        type="checkbox" 
-                        checked={settings.notifications.stockMovementAlerts}
-                        onChange={(e) => setSettings({
-                          ...settings,
-                          notifications: { ...settings.notifications, stockMovementAlerts: e.target.checked }
-                        })}
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
-                    </label>
-                  </div>
-
-                  <div className="flex items-center justify-between p-3 border rounded-lg">
-                    <div>
-                      <p className="font-medium">Daily Report</p>
-                      <p className="text-sm text-gray-500">Receive daily sales report</p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input 
-                        type="checkbox" 
-                        checked={settings.notifications.dailyReport}
-                        onChange={(e) => setSettings({
-                          ...settings,
-                          notifications: { ...settings.notifications, dailyReport: e.target.checked }
-                        })}
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
-                    </label>
-                  </div>
-                </div>
-              )}
-
-              {/* Security Settings */}
-              {activeTab === 'security' && (
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between p-3 border rounded-lg">
-                    <div>
-                      <p className="font-medium">Two-Factor Authentication</p>
-                      <p className="text-sm text-gray-500">Add extra security to your account</p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input 
-                        type="checkbox" 
-                        checked={settings.security.twoFactorAuth}
-                        onChange={(e) => setSettings({
-                          ...settings,
-                          security: { ...settings.security, twoFactorAuth: e.target.checked }
-                        })}
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
-                    </label>
-                  </div>
-
-                  <div>
-                    <label className="block text-gray-700 mb-2">Session Timeout (minutes)</label>
-                    <input
-                      type="number"
-                      value={settings.security.sessionTimeout}
-                      onChange={(e) => setSettings({
+                  <label className="block text-[10px] sm:text-xs uppercase tracking-wide text-slate-500 mb-1">
+                    Currency
+                  </label>
+                  <select
+                    value={settings.general.currency}
+                    onChange={(e) =>
+                      setSettings({
                         ...settings,
-                        security: { ...settings.security, sessionTimeout: parseInt(e.target.value) }
-                      })}
-                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-gray-700 mb-2">Password Expiry (days)</label>
-                    <input
-                      type="number"
-                      value={settings.security.passwordExpiry}
-                      onChange={(e) => setSettings({
-                        ...settings,
-                        security: { ...settings.security, passwordExpiry: parseInt(e.target.value) }
-                      })}
-                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-gray-700 mb-2">Max Login Attempts</label>
-                    <input
-                      type="number"
-                      value={settings.security.maxLoginAttempts}
-                      onChange={(e) => setSettings({
-                        ...settings,
-                        security: { ...settings.security, maxLoginAttempts: parseInt(e.target.value) }
-                      })}
-                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Inventory Settings */}
-              {activeTab === 'inventory' && (
-                <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-gray-700 mb-2">Default Restock Level</label>
-                      <input
-                        type="number"
-                        value={settings.inventory.defaultRestockLevel}
-                        onChange={(e) => setSettings({
-                          ...settings,
-                          inventory: { ...settings.inventory, defaultRestockLevel: parseInt(e.target.value) }
-                        })}
-                        className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-gray-700 mb-2">Low Stock Threshold</label>
-                      <input
-                        type="number"
-                        value={settings.inventory.lowStockThreshold}
-                        onChange={(e) => setSettings({
-                          ...settings,
-                          inventory: { ...settings.inventory, lowStockThreshold: parseInt(e.target.value) }
-                        })}
-                        className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between p-3 border rounded-lg">
-                    <div>
-                      <p className="font-medium">Enable Batch Tracking</p>
-                      <p className="text-sm text-gray-500">Track products by batch numbers</p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input 
-                        type="checkbox" 
-                        checked={settings.inventory.enableBatchTracking}
-                        onChange={(e) => setSettings({
-                          ...settings,
-                          inventory: { ...settings.inventory, enableBatchTracking: e.target.checked }
-                        })}
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
-                    </label>
-                  </div>
-
-                  <div className="flex items-center justify-between p-3 border rounded-lg">
-                    <div>
-                      <p className="font-medium">Enable Expiry Tracking</p>
-                      <p className="text-sm text-gray-500">Track product expiry dates</p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input 
-                        type="checkbox" 
-                        checked={settings.inventory.enableExpiryTracking}
-                        onChange={(e) => setSettings({
-                          ...settings,
-                          inventory: { ...settings.inventory, enableExpiryTracking: e.target.checked }
-                        })}
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
-                    </label>
-                  </div>
-
-                  <div className="flex items-center justify-between p-3 border rounded-lg">
-                    <div>
-                      <p className="font-medium">Auto Generate SKU</p>
-                      <p className="text-sm text-gray-500">Automatically generate SKU for new products</p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input 
-                        type="checkbox" 
-                        checked={settings.inventory.autoGenerateSKU}
-                        onChange={(e) => setSettings({
-                          ...settings,
-                          inventory: { ...settings.inventory, autoGenerateSKU: e.target.checked }
-                        })}
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
-                    </label>
-                  </div>
-                </div>
-              )}
-
-              {/* Users Management */}
-              {activeTab === 'users' && (
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6">
-                  <h3 className="text-lg font-semibold text-slate-900">Account roles</h3>
-                  <p className="text-sm text-slate-600 mt-2 mb-4">
-                    New signups start as User. Approve Staff or Management from the dedicated admin page.
-                  </p>
-                  <Link
-                    to="/users"
-                    className="inline-flex items-center px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800"
+                        general: { ...settings.general, currency: e.target.value }
+                      })
+                    }
+                    className={inputClass}
                   >
-                    <FiUsers className="mr-2" />
-                    Open role manager
-                  </Link>
+                    <option value="ETB">ETB - Ethiopian Birr</option>
+                    <option value="USD">USD - US Dollar</option>
+                    <option value="EUR">EUR - Euro</option>
+                  </select>
                 </div>
-              )}
-
-              {/* Save Button */}
-              <div className="mt-6 pt-6 border-t flex justify-end">
-                <button
-                  onClick={handleSaveSettings}
-                  disabled={loading}
-                  className={`flex items-center px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition ${
-                    loading ? 'opacity-50 cursor-not-allowed' : ''
-                  }`}
-                >
-                  {loading ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <FiSave className="mr-2" />
-                      Save Settings
-                    </>
-                  )}
-                </button>
+                <div>
+                  <label className="block text-[10px] sm:text-xs uppercase tracking-wide text-slate-500 mb-1">
+                    Timezone
+                  </label>
+                  <select
+                    value={settings.general.timezone}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        general: { ...settings.general, timezone: e.target.value }
+                      })
+                    }
+                    className={inputClass}
+                  >
+                    <option value="Africa/Addis_Ababa">Addis Ababa (GMT+3)</option>
+                    <option value="Africa/Nairobi">Nairobi (GMT+3)</option>
+                    <option value="UTC">UTC</option>
+                  </select>
+                </div>
               </div>
-            </div>
-          </div>
+            )}
+
+            {activeTab === 'fields' && (
+              <div>
+                <h3 className="text-xs font-semibold text-slate-700 mb-2">Custom fields</h3>
+                <div className="space-y-1.5 mb-4">
+                  {customFields.map((field) => (
+                    <div
+                      key={field.id}
+                      className="flex items-center justify-between gap-2 p-2.5 border border-slate-100 rounded-xl"
+                    >
+                      <div className="min-w-0">
+                        <span className="text-xs font-medium truncate">{field.name}</span>
+                        <span className="text-[10px] text-slate-500 ml-1">– {field.type}</span>
+                        {field.required && (
+                          <span className="ml-1.5 text-[10px] bg-rose-100 text-rose-800 px-1.5 py-0.5 rounded-md">
+                            Required
+                          </span>
+                        )}
+                      </div>
+                      <SoftButton className="text-rose-500 hover:bg-rose-50 shrink-0">
+                        Delete
+                      </SoftButton>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="border-t border-slate-100 pt-3">
+                  <h3 className="text-xs font-semibold text-slate-700 mb-2">Add new field</h3>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <input
+                      type="text"
+                      placeholder="Field name"
+                      className={`${inputClass} flex-1`}
+                    />
+                    <select className={`${inputClass} sm:w-32`}>
+                      <option value="text">Text</option>
+                      <option value="number">Number</option>
+                      <option value="options">Options</option>
+                      <option value="date">Date</option>
+                    </select>
+                    <SoftButton className="bg-teal-600 text-white hover:bg-teal-700">
+                      Add
+                    </SoftButton>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'options' && (
+              <div className="space-y-5">
+                <div>
+                  <h3 className="text-xs font-semibold text-slate-700 mb-2">Colors</h3>
+                  <div className="space-y-1 mb-2">
+                    {colors.map((color, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between p-2 border border-slate-100 rounded-lg"
+                      >
+                        <span className="text-xs">{color}</span>
+                        <SoftButton
+                          onClick={() => handleDeleteOption('colors', index)}
+                          className="text-rose-500 hover:bg-rose-50"
+                        >
+                          Delete
+                        </SoftButton>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex gap-1.5">
+                    <input
+                      type="text"
+                      placeholder="Add color"
+                      value={newOption.type === 'colors' ? newOption.value : ''}
+                      onChange={(e) => setNewOption({ type: 'colors', value: e.target.value })}
+                      className={`${inputClass} flex-1`}
+                    />
+                    <SoftButton
+                      onClick={handleAddOption}
+                      className="bg-teal-600 text-white hover:bg-teal-700"
+                    >
+                      Add
+                    </SoftButton>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-xs font-semibold text-slate-700 mb-2">Categories</h3>
+                  <div className="space-y-1 mb-2 max-h-48 overflow-y-auto">
+                    {categories.map((category, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between p-2 border border-slate-100 rounded-lg"
+                      >
+                        <span className="text-xs truncate">{category}</span>
+                        <SoftButton
+                          onClick={() => handleDeleteOption('categories', index)}
+                          className="text-rose-500 hover:bg-rose-50 shrink-0"
+                        >
+                          Delete
+                        </SoftButton>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex gap-1.5">
+                    <input
+                      type="text"
+                      placeholder="Add category"
+                      value={newOption.type === 'categories' ? newOption.value : ''}
+                      onChange={(e) =>
+                        setNewOption({ type: 'categories', value: e.target.value })
+                      }
+                      className={`${inputClass} flex-1`}
+                    />
+                    <SoftButton
+                      onClick={handleAddOption}
+                      className="bg-teal-600 text-white hover:bg-teal-700"
+                    >
+                      Add
+                    </SoftButton>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'notifications' && (
+              <div className="space-y-2">
+                {[
+                  {
+                    key: 'emailAlerts',
+                    title: 'Email Alerts',
+                    desc: 'Receive email notifications'
+                  },
+                  {
+                    key: 'lowStockAlerts',
+                    title: 'Low Stock Alerts',
+                    desc: 'Get notified when stock is low'
+                  },
+                  {
+                    key: 'stockMovementAlerts',
+                    title: 'Stock Movement Alerts',
+                    desc: 'Get notified about stock movements'
+                  },
+                  {
+                    key: 'dailyReport',
+                    title: 'Daily Report',
+                    desc: 'Receive daily sales report'
+                  }
+                ].map((item) => (
+                  <div
+                    key={item.key}
+                    className="flex items-center justify-between gap-3 p-2.5 border border-slate-100 rounded-xl"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium">{item.title}</p>
+                      <p className="text-[10px] text-slate-500">{item.desc}</p>
+                    </div>
+                    <Toggle
+                      checked={settings.notifications[item.key]}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          notifications: {
+                            ...settings.notifications,
+                            [item.key]: e.target.checked
+                          }
+                        })
+                      }
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {activeTab === 'security' && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3 p-2.5 border border-slate-100 rounded-xl">
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium">Two-Factor Authentication</p>
+                    <p className="text-[10px] text-slate-500">Add extra security to your account</p>
+                  </div>
+                  <Toggle
+                    checked={settings.security.twoFactorAuth}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        security: { ...settings.security, twoFactorAuth: e.target.checked }
+                      })
+                    }
+                  />
+                </div>
+
+                {[
+                  { key: 'sessionTimeout', label: 'Session Timeout (minutes)' },
+                  { key: 'passwordExpiry', label: 'Password Expiry (days)' },
+                  { key: 'maxLoginAttempts', label: 'Max Login Attempts' }
+                ].map((field) => (
+                  <div key={field.key}>
+                    <label className="block text-[10px] sm:text-xs uppercase tracking-wide text-slate-500 mb-1">
+                      {field.label}
+                    </label>
+                    <input
+                      type="number"
+                      value={settings.security[field.key]}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          security: {
+                            ...settings.security,
+                            [field.key]: parseInt(e.target.value)
+                          }
+                        })
+                      }
+                      className={inputClass}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {activeTab === 'inventory' && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] sm:text-xs uppercase tracking-wide text-slate-500 mb-1">
+                      Default Restock Level
+                    </label>
+                    <input
+                      type="number"
+                      value={settings.inventory.defaultRestockLevel}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          inventory: {
+                            ...settings.inventory,
+                            defaultRestockLevel: parseInt(e.target.value)
+                          }
+                        })
+                      }
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] sm:text-xs uppercase tracking-wide text-slate-500 mb-1">
+                      Low Stock Threshold
+                    </label>
+                    <input
+                      type="number"
+                      value={settings.inventory.lowStockThreshold}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          inventory: {
+                            ...settings.inventory,
+                            lowStockThreshold: parseInt(e.target.value)
+                          }
+                        })
+                      }
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+
+                {[
+                  {
+                    key: 'enableBatchTracking',
+                    title: 'Enable Batch Tracking',
+                    desc: 'Track products by batch numbers'
+                  },
+                  {
+                    key: 'enableExpiryTracking',
+                    title: 'Enable Expiry Tracking',
+                    desc: 'Track product expiry dates'
+                  },
+                  {
+                    key: 'autoGenerateSKU',
+                    title: 'Auto Generate SKU',
+                    desc: 'Automatically generate SKU for new products'
+                  }
+                ].map((item) => (
+                  <div
+                    key={item.key}
+                    className="flex items-center justify-between gap-3 p-2.5 border border-slate-100 rounded-xl"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium">{item.title}</p>
+                      <p className="text-[10px] text-slate-500">{item.desc}</p>
+                    </div>
+                    <Toggle
+                      checked={settings.inventory[item.key]}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          inventory: {
+                            ...settings.inventory,
+                            [item.key]: e.target.checked
+                          }
+                        })
+                      }
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {activeTab === 'users' && (
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+                <h3 className="text-sm font-semibold text-slate-900">Account roles</h3>
+                <p className="text-xs text-slate-600 mt-1.5 mb-3">
+                  New signups start as User. Approve Staff or Management from the dedicated admin
+                  page.
+                </p>
+                <Link
+                  to="/users"
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-teal-600 text-white hover:bg-teal-700"
+                >
+                  <FiUsers size={12} /> Open role manager
+                </Link>
+              </div>
+            )}
+          </Panel>
         </div>
       </div>
-    </div>
+    </PageShell>
   );
 };
 

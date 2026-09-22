@@ -1,320 +1,11 @@
-// ========== IN-MEMORY STORAGE ==========
-let customers = [
-  {
-    _id: 1,
-    fullName: 'Dagmawi Tsegaye',
-    phoneNumber: '09857717299',
-    organization: 'Individual',
-    email: 'dagmawi.tsegaye@email.com',
-    address: 'Addis Ababa, Ethiopia',
-    customerType: 'Regular',
-    status: 'Active',
-    totalPurchases: 3,
-    totalSpent: 117800,
-    lastPurchaseDate: '2025-10-25',
-    createdAt: '2025-01-15',
-    notes: 'Preferred customer',
-    purchaseHistory: [
-      {
-        _id: 'sale1',
-        transactionId: 'TRX001',
-        type: 'Batch',
-        quantity: 10,
-        amount: 92000,
-        date: '10/25/2025',
-        items: [
-          { productId: '10019', productName: 'GODMIDDAG (18 Piece)', quantity: 10, price: 9200 }
-        ]
-      },
-      {
-        _id: 'sale2',
-        transactionId: 'TRX002',
-        type: 'Batch',
-        quantity: 12,
-        amount: 18000,
-        date: '10/25/2025',
-        items: [
-          { productId: '10018', productName: 'GLADELIG (18 Piece Dinner Wareset)', quantity: 12, price: 1500 }
-        ]
-      },
-      {
-        _id: 'sale3',
-        transactionId: 'TRX003',
-        type: 'Batch',
-        quantity: 2,
-        amount: 7800,
-        date: '10/25/2025',
-        items: [
-          { productId: '10015', productName: 'MOSSMAL (Bowl)', quantity: 2, price: 3900 }
-        ]
-      }
-    ]
-  },
-  {
-    _id: 2,
-    fullName: 'Benyam Assegdw',
-    phoneNumber: '0983354391',
-    organization: 'ABC Company',
-    email: 'benyam@tridal.org',
-    address: 'Addis Ababa, Ethiopia',
-    customerType: 'Regular',
-    status: 'Active',
-    totalPurchases: 3,
-    totalSpent: 436500,
-    lastPurchaseDate: '2025-10-24',
-    createdAt: '2025-02-10',
-    notes: 'Bulk purchaser',
-    purchaseHistory: [
-      {
-        _id: 'sale4',
-        transactionId: 'TRX004',
-        type: 'Single',
-        quantity: 970,
-        amount: 145500,
-        date: '10/24/2025',
-        items: [
-          { productId: '10022', productName: 'Roll-on Pouch', quantity: 970, price: 150 }
-        ]
-      },
-      {
-        _id: 'sale5',
-        transactionId: 'TRX005',
-        type: 'Single',
-        quantity: 970,
-        amount: 145500,
-        date: '10/24/2025',
-        items: [
-          { productId: '10022', productName: 'Roll-on Pouch', quantity: 970, price: 150 }
-        ]
-      },
-      {
-        _id: 'sale6',
-        transactionId: 'TRX006',
-        type: 'Single',
-        quantity: 970,
-        amount: 145500,
-        date: '10/24/2025',
-        items: [
-          { productId: '10022', productName: 'Roll-on Pouch', quantity: 970, price: 150 }
-        ]
-      }
-    ]
-  },
-  {
-    _id: 3,
-    fullName: 'Hailom Kiros',
-    phoneNumber: '0983354390',
-    organization: 'Hailom Enterprises',
-    email: 'hailom.k@email.com',
-    address: 'Addis Ababa, Ethiopia',
-    customerType: 'Regular',
-    status: 'Active',
-    totalPurchases: 1,
-    totalSpent: 187500,
-    lastPurchaseDate: '2025-10-26',
-    createdAt: '2025-01-20',
-    notes: 'New regular customer',
-    purchaseHistory: [
-      {
-        _id: 'sale7',
-        transactionId: 'TRX007',
-        type: 'Batch',
-        quantity: 39,
-        amount: 187500,
-        date: '10/26/2025',
-        items: [
-          { productId: '10022', productName: 'Main Plate (18 Pieces)', quantity: 39, price: 4807.69 }
-        ]
-      }
-    ]
-  },
-  {
-    _id: 4,
-    fullName: 'Kahlid Teshome',
-    phoneNumber: '0983354391',
-    organization: 'XYZ Ltd',
-    email: 'kahlid.t@email.com',
-    address: 'Addis Ababa, Ethiopia',
-    customerType: 'Regular',
-    status: 'Active',
-    totalPurchases: 0,
-    totalSpent: 0,
-    lastPurchaseDate: null,
-    createdAt: '2025-03-05',
-    notes: 'New customer',
-    purchaseHistory: []
-  },
-  {
-    _id: 5,
-    fullName: 'Dagmawi Tsegaye',
-    phoneNumber: '0983354377',
-    organization: 'Individual',
-    email: 'dagmawi.t2@email.com',
-    address: 'Addis Ababa, Ethiopia',
-    customerType: 'Regular',
-    status: 'Active',
-    totalPurchases: 1,
-    totalSpent: 134500,
-    lastPurchaseDate: '2025-10-26',
-    createdAt: '2025-02-15',
-    notes: '',
-    purchaseHistory: [
-      {
-        _id: 'sale8',
-        transactionId: 'TRX008',
-        type: 'Batch',
-        quantity: 25,
-        amount: 134500,
-        date: '10/26/2025',
-        items: [
-          { productId: '10019', productName: 'GODMIDDAG (18 Piece)', quantity: 25, price: 5380 }
-        ]
-      }
-    ]
-  },
-  {
-    _id: 6,
-    fullName: 'Belay Teshome',
-    phoneNumber: '0900000001',
-    organization: 'Belay Trading',
-    email: 'belay.t@email.com',
-    address: 'Addis Ababa, Ethiopia',
-    customerType: 'Regular',
-    status: 'Returned',
-    totalPurchases: 0,
-    totalSpent: 0,
-    lastPurchaseDate: null,
-    createdAt: '2025-03-10',
-    notes: 'Returned customer',
-    purchaseHistory: []
-  },
-  {
-    _id: 7,
-    fullName: 'Dagmawi Tsegaye',
-    phoneNumber: '09438001239',
-    organization: 'Dagmawi PLC',
-    email: 'dagmawi.plc@email.com',
-    address: 'Addis Ababa, Ethiopia',
-    customerType: 'Regular',
-    status: 'Active',
-    totalPurchases: 1,
-    totalSpent: 187500,
-    lastPurchaseDate: '2025-10-26',
-    createdAt: '2025-01-05',
-    notes: 'Corporate client',
-    purchaseHistory: [
-      {
-        _id: 'sale9',
-        transactionId: 'TRX009',
-        type: 'Batch',
-        quantity: 39,
-        amount: 187500,
-        date: '10/26/2025',
-        items: [
-          { productId: '10022', productName: 'Main Plate (18 Pieces)', quantity: 39, price: 4807.69 }
-        ]
-      }
-    ]
-  },
-  {
-    _id: 8,
-    fullName: 'Abebe Kebede',
-    phoneNumber: '0911223344',
-    organization: 'Individual',
-    email: 'abebe.kebede@email.com',
-    address: 'Addis Ababa, Ethiopia',
-    customerType: 'New',
-    status: 'Active',
-    totalPurchases: 1,
-    totalSpent: 11700,
-    lastPurchaseDate: '2025-10-24',
-    createdAt: '2025-10-24',
-    notes: '',
-    purchaseHistory: [
-      {
-        _id: 'sale10',
-        transactionId: 'FS-1003484885888',
-        type: 'Single',
-        quantity: 3,
-        amount: 11700,
-        date: '10/24/2025',
-        items: [
-          { productId: '10016', productName: 'VARDAGEN', quantity: 3, price: 3900 }
-        ]
-      }
-    ]
-  },
-  {
-    _id: 9,
-    fullName: 'Almaz Worku',
-    phoneNumber: '0922334455',
-    organization: 'Individual',
-    email: 'almaz.worku@email.com',
-    address: 'Addis Ababa, Ethiopia',
-    customerType: 'VIP',
-    status: 'Active',
-    totalPurchases: 2,
-    totalSpent: 48900,
-    lastPurchaseDate: '2025-10-23',
-    createdAt: '2025-08-05',
-    notes: 'VIP customer - free delivery',
-    purchaseHistory: [
-      {
-        _id: 'sale11',
-        transactionId: 'FS-1003484885889',
-        type: 'Batch',
-        quantity: 5,
-        amount: 45000,
-        date: '10/23/2025',
-        items: [
-          { productId: '10017', productName: 'FÄRGKLAR (18 Piece Dinnerware)', quantity: 5, price: 9000 }
-        ]
-      },
-      {
-        _id: 'sale12',
-        transactionId: 'FS-1003484885890',
-        type: 'Single',
-        quantity: 1,
-        amount: 3900,
-        date: '10/22/2025',
-        items: [
-          { productId: '10019', productName: 'GODMIDDAG (18 Piece)', quantity: 1, price: 3900 }
-        ]
-      }
-    ]
-  }
-];
-
-const pad = (n) => String(n).padStart(2, '0');
-const localDate = (offsetDays) => {
-  const date = new Date();
-  date.setDate(date.getDate() + offsetDays);
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-};
-
-const customerOrderMeta = {
-  1: { orderDeadline: localDate(3), orderStatus: 'processing', orderDescription: 'Dinnerware set delivery' },
-  2: { orderDeadline: localDate(1), orderStatus: 'pending', orderDescription: 'Bulk pouch restock' },
-  3: { orderDeadline: localDate(-2), orderStatus: 'processing', orderDescription: 'Main plate batch' },
-  5: { orderDeadline: localDate(5), orderStatus: 'pending', orderDescription: 'GODMIDDAG follow-up' },
-  7: { orderDeadline: localDate(0), orderStatus: 'processing', orderDescription: 'Corporate plate order' },
-  8: { orderDeadline: localDate(-1), orderStatus: 'pending', orderDescription: 'VARDAGEN pickup' },
-  9: { orderDeadline: localDate(7), orderStatus: 'completed', orderDescription: 'VIP dinnerware pack' }
-};
-
-customers.forEach((customer) => {
-  const extra = customerOrderMeta[customer._id];
-  if (extra) {
-    customer.orderDeadline = extra.orderDeadline;
-    customer.orderStatus = extra.orderStatus;
-    customer.orderDescription = extra.orderDescription;
-  }
-  if (!Array.isArray(customer.documents)) {
-    customer.documents = [];
-  }
-  if (customer.paymentPhoto === undefined) customer.paymentPhoto = '';
-  if (customer.orderPhoto === undefined) customer.orderPhoto = '';
-});
+// ========== SHARED STORE (persisted to disk) ==========
+const {
+  customers,
+  persistCustomers,
+  persistSales,
+  findCustomerById,
+  findCustomerIndexById
+} = require('../data/store');
 
 // Helper function to calculate customer stats
 const calculateCustomerStats = (customer) => {
@@ -330,6 +21,88 @@ const calculateCustomerStats = (customer) => {
     totalSpent,
     lastPurchaseDate
   };
+};
+
+const buildOrderRecord = ({
+  transactionId,
+  description,
+  deadline,
+  status,
+  orderPhoto,
+  paymentPhoto,
+  wholePayment,
+  firstPayment,
+  restPayment,
+  restPaid,
+  paymentMethod,
+  date
+}) => ({
+  _id: 'order_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+  transactionId: transactionId || ('FS-' + Date.now().toString().slice(-12)),
+  description: description || '',
+  deadline: deadline || null,
+  status: status || 'pending',
+  orderPhoto: orderPhoto || '',
+  paymentPhoto: paymentPhoto || '',
+  wholePayment: Number(wholePayment || 0),
+  firstPayment: Number(firstPayment || 0),
+  restPayment: Number(restPayment || 0),
+  restPaid: Boolean(restPaid),
+  paymentMethod: paymentMethod || '',
+  date: date || new Date().toISOString().split('T')[0],
+  createdAt: new Date().toISOString().split('T')[0]
+});
+
+/** Prefer saved orders[]; backfill from purchaseHistory / latest fields for older records. */
+const resolveCustomerOrders = (customer) => {
+  if (!customer) return [];
+  if (Array.isArray(customer.orders) && customer.orders.length > 0) {
+    return customer.orders;
+  }
+
+  const fromPurchases = (customer.purchaseHistory || [])
+    .filter((p) => p && (p.type === 'Order' || p.description))
+    .map((p, index) => ({
+      _id: p._id || `order_legacy_${index}`,
+      transactionId: p.transactionId || '',
+      description: p.description || customer.orderDescription || 'Order',
+      deadline: customer.orderDeadline || null,
+      status: customer.orderStatus || 'pending',
+      orderPhoto: index === 0 ? (customer.orderPhoto || '') : '',
+      paymentPhoto: p.paymentPhoto || '',
+      wholePayment: Number(p.wholePayment != null ? p.wholePayment : (Number(p.firstPayment || 0) + Number(p.restPayment || 0))),
+      firstPayment: Number(p.firstPayment != null ? p.firstPayment : p.amount || 0),
+      restPayment: Number(p.restPayment || 0),
+      restPaid: Boolean(p.restPaid),
+      paymentMethod: p.method || customer.paymentMethod || '',
+      date: p.date || customer.lastPurchaseDate || customer.createdAt || '',
+      createdAt: p.date || customer.createdAt || ''
+    }));
+
+  if (fromPurchases.length > 0) return fromPurchases;
+
+  if (customer.orderDescription || customer.wholePayment) {
+    return [
+      {
+        _id: 'order_current',
+        transactionId: '',
+        description: customer.orderDescription || 'Order',
+        deadline: customer.orderDeadline || null,
+        status: customer.orderStatus || 'pending',
+        orderPhoto: customer.orderPhoto || '',
+        paymentPhoto: customer.paymentPhoto || '',
+        wholePayment: Number(customer.wholePayment || 0),
+        firstPayment: Number(customer.firstPayment || 0),
+        restPayment: Number(customer.restPayment || 0),
+        restPaid: Boolean(customer.restPaid),
+        paymentMethod: customer.paymentMethod || '',
+        date: customer.lastPurchaseDate || customer.createdAt || '',
+        createdAt: customer.createdAt || ''
+      }
+    ];
+  }
+
+  return [];
 };
 
 // ========== CUSTOMER CRUD OPERATIONS ==========
@@ -385,18 +158,23 @@ const getAllCustomers = (req, res) => {
     restPayment: customer.restPayment || 0,
     restPaid: Boolean(customer.restPaid),
     paymentMethod: customer.paymentMethod || '',
-    paymentType: customer.paymentType || 'first_and_rest'
+    paymentType: customer.paymentType || 'first_and_rest',
+    ordersCount: resolveCustomerOrders(customer).length
   }));
 
-  res.json(formattedCustomers);
+  res.json(
+    formattedCustomers.map((customer) => {
+      const { sanitizeCustomerForRole } = require('../middleware/auth');
+      return sanitizeCustomerForRole(customer, req.user?.role);
+    })
+  );
 };
 
 // @desc    Get single customer by ID
 // @route   GET /api/customers/:id
 // @access  Private
 const getCustomerById = (req, res) => {
-  const id = parseInt(req.params.id);
-  const customer = customers.find(c => c._id === id);
+  const customer = findCustomerById(req.params.id);
 
   if (customer) {
     // Format for detailed view
@@ -426,17 +204,21 @@ const getCustomerById = (req, res) => {
       restPaid: Boolean(customer.restPaid),
       paymentMethod: customer.paymentMethod || '',
       paymentType: customer.paymentType || 'first_and_rest',
-      purchaseHistory: customer.purchaseHistory.map(purchase => ({
+      purchaseHistory: (customer.purchaseHistory || []).map(purchase => ({
         _id: purchase._id,
         transactionId: purchase.transactionId,
         type: purchase.type,
         quantity: purchase.quantity,
         amount: purchase.amount,
         date: purchase.date,
+        description: purchase.description,
+        method: purchase.method,
         items: purchase.items
-      }))
+      })),
+      orders: resolveCustomerOrders(customer)
     };
-    res.json(formattedCustomer);
+    const { sanitizeCustomerForRole } = require('../middleware/auth');
+    res.json(sanitizeCustomerForRole(formattedCustomer, req.user?.role));
   } else {
     res.status(404).json({ message: 'Customer not found' });
   }
@@ -460,7 +242,7 @@ const getCustomerByPhone = (req, res) => {
 // @route   POST /api/customers
 // @access  Private
 const createCustomer = async (req, res) => {
-  console.log('👤 Creating new customer:', req.body);
+  console.log('?? Creating new customer:', req.body);
 
   const {
     fullName,
@@ -495,10 +277,12 @@ const createCustomer = async (req, res) => {
   // Check if customer with same phone exists
   const existingCustomer = customers.find(c => c.phoneNumber === phoneNumber);
   if (existingCustomer) {
-    return res.status(400).json({ message: 'Customer with this phone number already exists' });
+    return res.status(400).json({
+      message: 'Customer with this phone number already exists. Use Add Order on that customer instead.'
+    });
   }
 
-  const nextId = customers.length > 0 ? Math.max(...customers.map(c => c._id)) + 1 : 1;
+  const nextId = customers.length > 0 ? Math.max(...customers.map(c => Number(c._id) || 0)) + 1 : 1;
   const whole = Number(wholePayment || 0);
   const first = Number(firstPayment || 0);
   const rest = Math.max(0, Number(restPayment || whole - first));
@@ -526,6 +310,25 @@ const createCustomer = async (req, res) => {
     });
   }
 
+  const txnId = 'FS-' + Date.now().toString().slice(-12);
+  const orderRecord =
+    whole > 0 || orderDescription
+      ? buildOrderRecord({
+          transactionId: txnId,
+          description: orderDescription || 'Customer order',
+          deadline: orderDeadline || deadline || null,
+          status: orderStatus || 'pending',
+          orderPhoto: orderPhoto || '',
+          paymentPhoto: paymentPhoto || '',
+          wholePayment: whole,
+          firstPayment: first,
+          restPayment: rest,
+          restPaid: rest === 0,
+          paymentMethod: paymentMethod || 'Bank Transfer',
+          date: paymentDate || today
+        })
+      : null;
+
   const newCustomer = {
     _id: nextId,
     fullName,
@@ -552,9 +355,10 @@ const createCustomer = async (req, res) => {
     restPaid: rest === 0,
     paymentMethod: paymentMethod || '',
     paymentType: 'first_and_rest',
+    orders: orderRecord ? [orderRecord] : [],
     purchaseHistory: whole > 0 ? [{
       _id: 'purchase_' + Date.now(),
-      transactionId: 'FS-' + Date.now().toString().slice(-12),
+      transactionId: txnId,
       type: 'Order',
       quantity: 1,
       amount: first,
@@ -568,13 +372,15 @@ const createCustomer = async (req, res) => {
   };
 
   customers.push(newCustomer);
+  persistCustomers();
 
   try {
     const { sales } = require('../data/store');
     if (orderDescription || whole > 0) {
       sales.push({
         _id: sales.length > 0 ? Math.max(...sales.map((s) => Number(s._id) || 0)) + 1 : 1,
-        transactionId: newCustomer.purchaseHistory[0]?.transactionId || ('FS-' + Date.now().toString().slice(-12)),
+        transactionId: newCustomer.purchaseHistory[0]?.transactionId || txnId || ('FS-' + Date.now().toString().slice(-12)),
+        customerId: newCustomer._id,
         customerName: fullName,
         paymentMethod: paymentMethod || '',
         items: [{ name: orderDescription || 'Customer order', qty: 1, price: whole, amount: whole }],
@@ -588,6 +394,7 @@ const createCustomer = async (req, res) => {
         date: new Date().toISOString().slice(0, 10),
         orderPhoto: orderPhoto || ''
       });
+      persistSales();
     }
   } catch (error) {
     console.warn('Could not attach customer order to sales:', error.message);
@@ -595,16 +402,230 @@ const createCustomer = async (req, res) => {
 
   let emailConfirmation = { sent: false, skipped: true, reason: 'No email provided' };
   try {
-    const { sendOrderConfirmation } = require('../utils/emailService');
+    const { sendOrderConfirmation, buildOrderConfirmationText } = require('../utils/emailService');
     emailConfirmation = await sendOrderConfirmation(newCustomer);
+    if (!emailConfirmation.receiptText) {
+      emailConfirmation.receiptText = buildOrderConfirmationText(newCustomer);
+    }
   } catch (error) {
     console.warn('Order confirmation email failed:', error.message);
-    emailConfirmation = { sent: false, skipped: false, error: error.message };
+    const { buildOrderConfirmationText } = require('../utils/emailService');
+    emailConfirmation = {
+      sent: false,
+      skipped: false,
+      error: error.message,
+      receiptText: buildOrderConfirmationText(newCustomer)
+    };
   }
+
+  try {
+    const { checkAndNotifyDeadlineAlerts } = require('../utils/deadlineAlerts');
+    checkAndNotifyDeadlineAlerts().catch(() => {});
+  } catch (_) { /* optional */ }
 
   res.status(201).json({
     message: 'Customer created successfully',
-    customer: newCustomer,
+    customer: (() => {
+      const { sanitizeCustomerForRole } = require('../middleware/auth');
+      return sanitizeCustomerForRole(newCustomer, req.user?.role);
+    })(),
+    emailConfirmation
+  });
+};
+
+// @desc    Add a new order for an existing customer
+// @route   POST /api/customers/:id/orders
+// @access  Private
+const addCustomerOrder = async (req, res) => {
+  const index = findCustomerIndexById(req.params.id);
+
+  if (index === -1) {
+    return res.status(404).json({ message: 'Customer not found' });
+  }
+
+  const customer = customers[index];
+  const {
+    orderDescription,
+    orderDeadline,
+    deadline,
+    orderStatus,
+    orderPhoto,
+    paymentPhoto,
+    wholePayment,
+    firstPayment,
+    restPayment,
+    paymentMethod,
+    paymentDate
+  } = req.body;
+
+  if (!orderDescription || !String(orderDescription).trim()) {
+    return res.status(400).json({ message: 'Order description is required' });
+  }
+
+  const whole = Number(wholePayment || 0);
+  const first = Number(firstPayment || 0);
+  if (!whole || whole <= 0) {
+    return res.status(400).json({
+      message: 'Whole payment is required so this order is counted in dashboard totals'
+    });
+  }
+  if (first > whole) {
+    return res.status(400).json({ message: 'First payment cannot exceed whole payment' });
+  }
+  const rest = Math.max(0, Number(restPayment != null ? restPayment : whole - first));
+  const today = new Date().toISOString().split('T')[0];
+  const due = orderDeadline || deadline || null;
+  const txnId = 'FS-' + Date.now().toString().slice(-12);
+
+  if (!Array.isArray(customer.documents)) customer.documents = [];
+  if (!Array.isArray(customer.purchaseHistory)) customer.purchaseHistory = [];
+
+  if (orderPhoto) {
+    customer.documents.push({
+      id: `order-${Date.now()}`,
+      name: 'order_photo.jpg',
+      type: 'order',
+      date: today,
+      size: 'attached',
+      url: orderPhoto
+    });
+  }
+  if (paymentPhoto) {
+    customer.documents.push({
+      id: `payment-${Date.now() + 1}`,
+      name: 'payment_proof.jpg',
+      type: 'payment',
+      date: today,
+      size: 'attached',
+      url: paymentPhoto
+    });
+  }
+
+  const purchase = {
+    _id: 'purchase_' + Date.now(),
+    transactionId: txnId,
+    type: 'Order',
+    quantity: 1,
+    amount: first,
+    firstPayment: first,
+    restPayment: rest,
+    date: paymentDate || today,
+    method: paymentMethod || 'Bank Transfer',
+    description: orderDescription,
+    paymentPhoto: paymentPhoto || ''
+  };
+  customer.purchaseHistory.push(purchase);
+
+  if (!Array.isArray(customer.orders)) customer.orders = [];
+  if (customer.orders.length === 0) {
+    // Backfill older records from purchases before this new one
+    const prior = {
+      ...customer,
+      purchaseHistory: customer.purchaseHistory.slice(0, -1),
+      orders: []
+    };
+    customer.orders = resolveCustomerOrders(prior);
+  }
+  const orderRecord = buildOrderRecord({
+    transactionId: txnId,
+    description: orderDescription,
+    deadline: due,
+    status: orderStatus || 'pending',
+    orderPhoto: orderPhoto || '',
+    paymentPhoto: paymentPhoto || '',
+    wholePayment: whole,
+    firstPayment: first,
+    restPayment: rest,
+    restPaid: rest === 0,
+    paymentMethod: paymentMethod || 'Bank Transfer',
+    date: paymentDate || today
+  });
+  customer.orders.push(orderRecord);
+
+  // Latest order becomes the active order on the customer record
+  customer.orderDescription = orderDescription;
+  customer.orderDeadline = due;
+  customer.orderStatus = orderStatus || 'pending';
+  customer.orderPhoto = orderPhoto || customer.orderPhoto || '';
+  customer.paymentPhoto = paymentPhoto || customer.paymentPhoto || '';
+  customer.wholePayment = whole;
+  customer.firstPayment = first;
+  customer.restPayment = rest;
+  customer.restPaid = rest === 0;
+  customer.paymentMethod = paymentMethod || customer.paymentMethod || '';
+  customer.paymentType = 'first_and_rest';
+  customer.status = 'Active';
+  customer.totalPurchases = customer.purchaseHistory.length;
+  customer.totalSpent = customer.purchaseHistory.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+  customer.lastPurchaseDate = paymentDate || today;
+
+  try {
+    const { sales } = require('../data/store');
+    sales.push({
+      _id: sales.length > 0 ? Math.max(...sales.map((s) => Number(s._id) || 0)) + 1 : 1,
+      transactionId: txnId,
+      customerId: customer._id,
+      customerName: customer.fullName,
+      paymentMethod: paymentMethod || '',
+      items: [{ name: orderDescription, qty: 1, price: whole, amount: whole }],
+      totalAmount: whole,
+      firstPayment: first,
+      restPayment: rest,
+      restPaid: rest === 0,
+      paymentStatus: rest === 0 ? 'fully_paid' : 'first_paid',
+      deadline: due || '',
+      status: orderStatus || 'pending',
+      date: today,
+      orderPhoto: orderPhoto || ''
+    });
+    persistSales();
+  } catch (error) {
+    console.warn('Could not attach order to sales:', error.message);
+  }
+
+  persistCustomers();
+
+  const emailPayload = {
+    ...customer,
+    orderDescription,
+    orderDeadline: due,
+    deadline: due,
+    orderStatus: orderStatus || 'pending',
+    wholePayment: whole,
+    firstPayment: first,
+    restPayment: rest,
+    paymentMethod: paymentMethod || customer.paymentMethod || '',
+    purchaseHistory: [purchase, ...customer.purchaseHistory.slice(0, -1)]
+  };
+
+  let emailConfirmation = { sent: false, skipped: true, reason: 'No email provided' };
+  try {
+    const { sendOrderConfirmation, buildOrderConfirmationText } = require('../utils/emailService');
+    emailConfirmation = await sendOrderConfirmation(emailPayload);
+    if (!emailConfirmation.receiptText) {
+      emailConfirmation.receiptText = buildOrderConfirmationText(emailPayload);
+    }
+  } catch (error) {
+    console.warn('Order confirmation email failed:', error.message);
+    const { buildOrderConfirmationText } = require('../utils/emailService');
+    emailConfirmation = {
+      sent: false,
+      skipped: false,
+      error: error.message,
+      receiptText: buildOrderConfirmationText(emailPayload)
+    };
+  }
+
+  try {
+    const { checkAndNotifyDeadlineAlerts } = require('../utils/deadlineAlerts');
+    checkAndNotifyDeadlineAlerts().catch(() => {});
+  } catch (_) { /* optional */ }
+
+  const { sanitizeCustomerForRole } = require('../middleware/auth');
+  res.status(201).json({
+    message: 'Order added for existing customer',
+    customer: sanitizeCustomerForRole(customer, req.user?.role),
+    order: purchase,
     emailConfirmation
   });
 };
@@ -613,17 +634,18 @@ const createCustomer = async (req, res) => {
 // @route   PUT /api/customers/:id
 // @access  Private
 const updateCustomer = (req, res) => {
-  const id = parseInt(req.params.id);
-  const index = customers.findIndex(c => c._id === id);
+  const index = findCustomerIndexById(req.params.id);
 
   if (index === -1) {
     return res.status(404).json({ message: 'Customer not found' });
   }
 
+  const id = Number(customers[index]._id);
+
   // Check phone number uniqueness if being updated
   if (req.body.phoneNumber && req.body.phoneNumber !== customers[index].phoneNumber) {
     const existingCustomer = customers.find(c => 
-      c.phoneNumber === req.body.phoneNumber && c._id !== id
+      c.phoneNumber === req.body.phoneNumber && Number(c._id) !== id
     );
     if (existingCustomer) {
       return res.status(400).json({ message: 'Phone number already in use' });
@@ -637,6 +659,7 @@ const updateCustomer = (req, res) => {
     _id: id,
     documents: Array.isArray(req.body.documents) ? req.body.documents : (current.documents || [])
   };
+  persistCustomers();
 
   res.json({
     message: 'Customer updated successfully',
@@ -648,8 +671,7 @@ const updateCustomer = (req, res) => {
 // @route   POST /api/customers/:id/documents
 // @access  Private
 const addCustomerDocument = (req, res) => {
-  const id = parseInt(req.params.id);
-  const index = customers.findIndex((c) => c._id === id);
+  const index = findCustomerIndexById(req.params.id);
 
   if (index === -1) {
     return res.status(404).json({ message: 'Customer not found' });
@@ -680,6 +702,7 @@ const addCustomerDocument = (req, res) => {
   if (type === 'order') {
     customers[index].orderPhoto = url;
   }
+  persistCustomers();
 
   res.status(201).json({
     message: 'Document uploaded successfully',
@@ -692,8 +715,7 @@ const addCustomerDocument = (req, res) => {
 // @route   DELETE /api/customers/:id/documents/:docId
 // @access  Private
 const deleteCustomerDocument = (req, res) => {
-  const id = parseInt(req.params.id);
-  const index = customers.findIndex((c) => c._id === id);
+  const index = findCustomerIndexById(req.params.id);
 
   if (index === -1) {
     return res.status(404).json({ message: 'Customer not found' });
@@ -701,6 +723,7 @@ const deleteCustomerDocument = (req, res) => {
 
   const docs = Array.isArray(customers[index].documents) ? customers[index].documents : [];
   customers[index].documents = docs.filter((doc) => String(doc.id) !== String(req.params.docId));
+  persistCustomers();
 
   res.json({
     message: 'Document deleted',
@@ -712,8 +735,7 @@ const deleteCustomerDocument = (req, res) => {
 // @route   DELETE /api/customers/:id
 // @access  Private/Admin
 const deleteCustomer = (req, res) => {
-  const id = parseInt(req.params.id);
-  const index = customers.findIndex(c => c._id === id);
+  const index = findCustomerIndexById(req.params.id);
 
   if (index === -1) {
     return res.status(404).json({ message: 'Customer not found' });
@@ -721,6 +743,7 @@ const deleteCustomer = (req, res) => {
 
   const deletedCustomer = customers[index];
   customers.splice(index, 1);
+  persistCustomers();
 
   res.json({
     message: 'Customer deleted successfully',
@@ -734,8 +757,7 @@ const deleteCustomer = (req, res) => {
 // @route   GET /api/customers/:id/purchases
 // @access  Private
 const getCustomerPurchases = (req, res) => {
-  const id = parseInt(req.params.id);
-  const customer = customers.find(c => c._id === id);
+  const customer = findCustomerById(req.params.id);
 
   if (!customer) {
     return res.status(404).json({ message: 'Customer not found' });
@@ -754,8 +776,7 @@ const getCustomerPurchases = (req, res) => {
 // @route   POST /api/customers/:id/purchases
 // @access  Private
 const addCustomerPurchase = (req, res) => {
-  const id = parseInt(req.params.id);
-  const index = customers.findIndex(c => c._id === id);
+  const index = findCustomerIndexById(req.params.id);
 
   if (index === -1) {
     return res.status(404).json({ message: 'Customer not found' });
@@ -783,6 +804,7 @@ const addCustomerPurchase = (req, res) => {
   customers[index].totalPurchases = customers[index].purchaseHistory.length;
   customers[index].totalSpent = customers[index].purchaseHistory.reduce((sum, p) => sum + p.amount, 0);
   customers[index].lastPurchaseDate = new Date().toISOString().split('T')[0];
+  persistCustomers();
 
   res.status(201).json({
     message: 'Purchase added to customer history',
@@ -805,8 +827,8 @@ const addCustomerPurchase = (req, res) => {
 // @access  Private
 const getCustomerStats = (req, res) => {
   try {
-    console.log('📊 getCustomerStats called');
-    console.log(`📊 Total customers in array: ${customers.length}`);
+    console.log('?? getCustomerStats called');
+    console.log(`?? Total customers in array: ${customers.length}`);
     
     const totalCustomers = customers.length;
     const activeCustomers = customers.filter(c => c.status === 'Active').length;
@@ -834,11 +856,11 @@ const getCustomerStats = (req, res) => {
       averageSpentPerCustomer: totalCustomers > 0 ? totalRevenue / totalCustomers : 0
     };
 
-    console.log('✅ Stats calculated:', stats);
+    console.log('? Stats calculated:', stats);
     res.json(stats);
     
   } catch (error) {
-    console.error('❌ Error in getCustomerStats:', error);
+    console.error('? Error in getCustomerStats:', error);
     res.status(500).json({ 
       message: 'Error calculating stats', 
       error: error.message 
@@ -944,7 +966,7 @@ const bulkImportCustomers = (req, res) => {
         return;
       }
 
-      const nextId = customers.length > 0 ? Math.max(...customers.map(c => c._id)) + 1 : 1;
+      const nextId = customers.length > 0 ? Math.max(...customers.map(c => Number(c._id) || 0)) + 1 : 1;
 
       const newCustomer = {
         _id: nextId,
@@ -970,6 +992,8 @@ const bulkImportCustomers = (req, res) => {
     }
   });
 
+  if (imported.length > 0) persistCustomers();
+
   res.status(201).json({
     message: `Successfully imported ${imported.length} customers`,
     imported,
@@ -983,6 +1007,7 @@ module.exports = {
   getCustomerById,
   getCustomerByPhone,
   createCustomer,
+  addCustomerOrder,
   updateCustomer,
   deleteCustomer,
   addCustomerDocument,

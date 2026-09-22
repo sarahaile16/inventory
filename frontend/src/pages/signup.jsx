@@ -1,11 +1,10 @@
-// frontend/src/pages/SignUp.jsx
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
-import { 
-  FiUser, FiMail, FiLock, FiPhone, FiBriefcase, 
+import {
+  FiUser, FiMail, FiLock, FiPhone, FiBriefcase,
   FiEye, FiEyeOff, FiCheckCircle, FiAlertCircle,
-  FiArrowRight, FiUserPlus
+  FiArrowRight, FiPackage
 } from 'react-icons/fi';
 
 const SignUp = () => {
@@ -15,7 +14,7 @@ const SignUp = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  
+
   const [formData, setFormData] = useState({
     fullName: '',
     username: '',
@@ -36,8 +35,6 @@ const SignUp = () => {
       ...formData,
       [name]: type === 'checkbox' ? checked : value
     });
-    
-    // Clear error for this field when user types
     if (errors[name]) {
       setErrors({ ...errors, [name]: '' });
     }
@@ -45,61 +42,32 @@ const SignUp = () => {
 
   const validateForm = () => {
     const newErrors = {};
-    
-    if (!formData.fullName.trim()) {
-      newErrors.fullName = 'Full name is required';
-    }
-    
-    if (!formData.username.trim()) {
-      newErrors.username = 'Username is required';
-    } else if (formData.username.length < 3) {
-      newErrors.username = 'Username must be at least 3 characters';
-    }
-    
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Email is invalid';
-    }
-    
-    if (!formData.phone.trim()) {
-      newErrors.phone = 'Phone number is required';
-    } else if (!/^\d{10,}$/.test(formData.phone.replace(/\D/g, ''))) {
-      newErrors.phone = 'Phone number must be at least 10 digits';
-    }
-    
-    if (!formData.password) {
-      newErrors.password = 'Password is required';
-    } else if (formData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
-    }
-    
-    if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
-    }
-    
-    if (!formData.agreeTerms) {
-      newErrors.agreeTerms = 'You must agree to the terms and conditions';
-    }
-    
+    if (!formData.fullName.trim()) newErrors.fullName = 'Full name is required';
+    if (!formData.username.trim()) newErrors.username = 'Username is required';
+    else if (formData.username.length < 3) newErrors.username = 'Username must be at least 3 characters';
+    if (!formData.email.trim()) newErrors.email = 'Email is required';
+    else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Email is invalid';
+    if (!formData.phone.trim()) newErrors.phone = 'Phone number is required';
+    else if (!/^\d{10,}$/.test(formData.phone.replace(/\D/g, ''))) newErrors.phone = 'Phone must be at least 10 digits';
+    if (!formData.password) newErrors.password = 'Password is required';
+    else if (formData.password.length < 6) newErrors.password = 'Password must be at least 6 characters';
+    if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = 'Passwords do not match';
+    if (!formData.agreeTerms) newErrors.agreeTerms = 'You must agree to continue';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
-    }
-    
+    if (!validateForm()) return;
+
     setLoading(true);
     setError('');
     setSuccess('');
-    
+
     try {
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
-      const response = await axios.post(`${API_URL}/auth/register`, {
+      await axios.post(`${API_URL}/auth/register`, {
         fullName: formData.fullName,
         username: formData.username,
         email: formData.email,
@@ -108,11 +76,11 @@ const SignUp = () => {
         requestedRole: formData.requestedRole,
         companyName: formData.companyName
       });
-      
-      console.log('✅ Registration successful:', response.data);
-      setSuccess('Account created as User. An admin will approve the role you selected.');
-      
-      // Reset form
+
+      setSuccess(
+        `Account created for “${formData.username}”. You start as a pending User. An admin will approve your ${formData.requestedRole} access. Then sign in with YOUR username and password.`
+      );
+
       setFormData({
         fullName: '',
         username: '',
@@ -124,230 +92,155 @@ const SignUp = () => {
         companyName: '',
         agreeTerms: false
       });
-      
-      // Redirect to login after 2 seconds
-      setTimeout(() => {
-        navigate('/login');
-      }, 2000);
-      
+
+      setTimeout(() => navigate('/login'), 2800);
     } catch (err) {
-      console.error('❌ Registration error:', err);
       setError(err.response?.data?.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
+  const fieldClass = (hasError) =>
+    `w-full pl-10 pr-3 py-2.5 rounded-xl border bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-600 transition ${
+      hasError ? 'border-rose-400' : 'border-slate-200'
+    }`;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center p-3 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full mb-4">
-            <FiUserPlus className="text-white" size={32} />
+    <div className="min-h-screen relative overflow-hidden bg-[#071a18] text-white">
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(15,118,110,0.4),_transparent_50%),radial-gradient(ellipse_at_bottom_left,_rgba(217,119,6,0.18),_transparent_45%)]" />
+      <div className="absolute inset-0 opacity-[0.06]" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%23ffffff\' fill-opacity=\'1\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")' }} />
+
+      <div className="relative min-h-screen grid lg:grid-cols-[1.05fr_1fr]">
+        <section className="hidden lg:flex flex-col justify-between p-12 xl:p-16">
+          <div className="flex items-center gap-3">
+            <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/20">
+              <FiPackage size={22} />
+            </span>
+            <div>
+              <p className="auth-display text-2xl font-bold">FurniStock</p>
+              <p className="text-teal-100/70 text-sm">Furniture inventory & orders</p>
+            </div>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900">Create an Account</h1>
-          <p className="text-gray-600 mt-2">Join our inventory management system</p>
-        </div>
 
-        {/* Main Card */}
-        <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-          <div className="flex flex-col md:flex-row">
-            {/* Left Side - Form */}
-            <div className="flex-1 p-8">
+          <div className="max-w-lg animate-[slideUp_550ms_ease-out]">
+            <h1 className="auth-display text-5xl font-bold leading-[1.08]">
+              Join your store team the right way.
+            </h1>
+            <p className="mt-5 text-teal-50/80 text-lg leading-relaxed">
+              Create your own username and password. You do not use the demo staff login — Admin will approve the role you request.
+            </p>
+            <ol className="mt-8 space-y-3 text-sm text-teal-50/90">
+              <li className="flex gap-3"><span className="text-amber-300 font-bold">1</span> Sign up with your details</li>
+              <li className="flex gap-3"><span className="text-amber-300 font-bold">2</span> Wait on Access status (pending)</li>
+              <li className="flex gap-3"><span className="text-amber-300 font-bold">3</span> Admin assigns Staff or Management</li>
+              <li className="flex gap-3"><span className="text-amber-300 font-bold">4</span> Sign in again with your own password</li>
+            </ol>
+          </div>
+
+          <p className="text-sm text-teal-100/50">Already approved? <Link to="/login" className="text-amber-200 hover:underline">Sign in</Link></p>
+        </section>
+
+        <section className="flex items-start lg:items-center justify-center p-5 sm:p-8 py-10">
+          <div className="w-full max-w-xl animate-[slideUp_450ms_ease-out]">
+            <div className="lg:hidden mb-6">
+              <p className="auth-display text-2xl font-bold">FurniStock</p>
+              <p className="text-teal-100/70 text-sm mt-1">Create your own account — not the demo staff login</p>
+            </div>
+
+            <div className="rounded-[1.75rem] bg-[#f4faf8] text-slate-900 shadow-[0_30px_80px_rgba(0,0,0,0.35)] p-6 sm:p-8">
+              <p className="text-xs uppercase tracking-[0.2em] text-teal-700/80 font-semibold">New team member</p>
+              <h2 className="auth-display text-3xl font-bold text-[#0f2f2c] mt-2">Create account</h2>
+              <p className="text-slate-500 text-sm mt-2">
+                Pick a unique username and password. Demo logins like <span className="font-medium text-slate-700">staff / staff123</span> are only for testing.
+              </p>
+
               {error && (
-                <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-start">
-                  <FiAlertCircle className="text-red-500 mr-3 flex-shrink-0 mt-0.5" size={18} />
-                  <div className="text-red-700 text-sm">{error}</div>
+                <div className="mt-5 rounded-xl bg-rose-50 border border-rose-100 text-rose-700 text-sm px-4 py-3 flex gap-2">
+                  <FiAlertCircle className="mt-0.5 shrink-0" /> {error}
                 </div>
               )}
-              
               {success && (
-                <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4 flex items-start">
-                  <FiCheckCircle className="text-green-500 mr-3 flex-shrink-0 mt-0.5" size={18} />
-                  <div className="text-green-700 text-sm">{success}</div>
+                <div className="mt-5 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-800 text-sm px-4 py-3 flex gap-2">
+                  <FiCheckCircle className="mt-0.5 shrink-0" /> {success}
                 </div>
               )}
 
-              <form onSubmit={handleSubmit} className="space-y-5">
-                {/* Full Name */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Full Name <span className="text-red-500">*</span>
-                  </label>
+              <form onSubmit={handleSubmit} className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Full name *</label>
                   <div className="relative">
-                    <FiUser className="absolute left-3 top-3 text-gray-400" size={18} />
-                    <input
-                      type="text"
-                      name="fullName"
-                      value={formData.fullName}
-                      onChange={handleChange}
-                      className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        errors.fullName ? 'border-red-500' : 'border-gray-300'
-                      }`}
-                      placeholder="Enter your full name"
-                    />
+                    <FiUser className="absolute left-3 top-3.5 text-slate-400" size={16} />
+                    <input name="fullName" value={formData.fullName} onChange={handleChange} className={fieldClass(errors.fullName)} placeholder="Your full name" />
                   </div>
-                  {errors.fullName && (
-                    <p className="text-red-500 text-xs mt-1">{errors.fullName}</p>
-                  )}
+                  {errors.fullName && <p className="text-rose-500 text-xs mt-1">{errors.fullName}</p>}
                 </div>
 
-                {/* Username */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Username <span className="text-red-500">*</span>
-                  </label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Username *</label>
                   <div className="relative">
-                    <FiUser className="absolute left-3 top-3 text-gray-400" size={18} />
-                    <input
-                      type="text"
-                      name="username"
-                      value={formData.username}
-                      onChange={handleChange}
-                      className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        errors.username ? 'border-red-500' : 'border-gray-300'
-                      }`}
-                      placeholder="Choose a username"
-                    />
+                    <FiUser className="absolute left-3 top-3.5 text-slate-400" size={16} />
+                    <input name="username" value={formData.username} onChange={handleChange} className={fieldClass(errors.username)} placeholder="Choose yours" />
                   </div>
-                  {errors.username && (
-                    <p className="text-red-500 text-xs mt-1">{errors.username}</p>
-                  )}
+                  {errors.username && <p className="text-rose-500 text-xs mt-1">{errors.username}</p>}
                 </div>
 
-                {/* Email */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Email Address <span className="text-red-500">*</span>
-                  </label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Phone *</label>
                   <div className="relative">
-                    <FiMail className="absolute left-3 top-3 text-gray-400" size={18} />
-                    <input
-                      type="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleChange}
-                      className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        errors.email ? 'border-red-500' : 'border-gray-300'
-                      }`}
-                      placeholder="you@example.com"
-                    />
+                    <FiPhone className="absolute left-3 top-3.5 text-slate-400" size={16} />
+                    <input name="phone" value={formData.phone} onChange={handleChange} className={fieldClass(errors.phone)} placeholder="09xxxxxxxx" />
                   </div>
-                  {errors.email && (
-                    <p className="text-red-500 text-xs mt-1">{errors.email}</p>
-                  )}
+                  {errors.phone && <p className="text-rose-500 text-xs mt-1">{errors.phone}</p>}
                 </div>
 
-                {/* Phone Number */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Phone Number <span className="text-red-500">*</span>
-                  </label>
+                <div className="sm:col-span-2">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Email *</label>
                   <div className="relative">
-                    <FiPhone className="absolute left-3 top-3 text-gray-400" size={18} />
-                    <input
-                      type="tel"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleChange}
-                      className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        errors.phone ? 'border-red-500' : 'border-gray-300'
-                      }`}
-                      placeholder="+251 912 345 678"
-                    />
+                    <FiMail className="absolute left-3 top-3.5 text-slate-400" size={16} />
+                    <input type="email" name="email" value={formData.email} onChange={handleChange} className={fieldClass(errors.email)} placeholder="you@email.com" />
                   </div>
-                  {errors.phone && (
-                    <p className="text-red-500 text-xs mt-1">{errors.phone}</p>
-                  )}
+                  {errors.email && <p className="text-rose-500 text-xs mt-1">{errors.email}</p>}
                 </div>
 
-                {/* Company Name (Optional) */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Company Name <span className="text-gray-400 text-xs">(Optional)</span>
-                  </label>
+                <div className="sm:col-span-2">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Company <span className="text-slate-400">(optional)</span></label>
                   <div className="relative">
-                    <FiBriefcase className="absolute left-3 top-3 text-gray-400" size={18} />
-                    <input
-                      type="text"
-                      name="companyName"
-                      value={formData.companyName}
-                      onChange={handleChange}
-                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Your company name"
-                    />
+                    <FiBriefcase className="absolute left-3 top-3.5 text-slate-400" size={16} />
+                    <input name="companyName" value={formData.companyName} onChange={handleChange} className={fieldClass(false)} placeholder="Store / company name" />
                   </div>
                 </div>
 
-                {/* Password */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Password <span className="text-red-500">*</span>
-                  </label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Password *</label>
                   <div className="relative">
-                    <FiLock className="absolute left-3 top-3 text-gray-400" size={18} />
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      name="password"
-                      value={formData.password}
-                      onChange={handleChange}
-                      className={`w-full pl-10 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        errors.password ? 'border-red-500' : 'border-gray-300'
-                      }`}
-                      placeholder="Min. 6 characters"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
-                    >
-                      {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                    <FiLock className="absolute left-3 top-3.5 text-slate-400" size={16} />
+                    <input type={showPassword ? 'text' : 'password'} name="password" value={formData.password} onChange={handleChange} className={`${fieldClass(errors.password)} pr-10`} placeholder="Min. 6 characters" />
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3.5 text-slate-400">
+                      {showPassword ? <FiEyeOff size={16} /> : <FiEye size={16} />}
                     </button>
                   </div>
-                  {errors.password && (
-                    <p className="text-red-500 text-xs mt-1">{errors.password}</p>
-                  )}
+                  {errors.password && <p className="text-rose-500 text-xs mt-1">{errors.password}</p>}
                 </div>
 
-                {/* Confirm Password */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Confirm Password <span className="text-red-500">*</span>
-                  </label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Confirm password *</label>
                   <div className="relative">
-                    <FiLock className="absolute left-3 top-3 text-gray-400" size={18} />
-                    <input
-                      type={showConfirmPassword ? "text" : "password"}
-                      name="confirmPassword"
-                      value={formData.confirmPassword}
-                      onChange={handleChange}
-                      className={`w-full pl-10 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        errors.confirmPassword ? 'border-red-500' : 'border-gray-300'
-                      }`}
-                      placeholder="Re-enter your password"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
-                    >
-                      {showConfirmPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                    <FiLock className="absolute left-3 top-3.5 text-slate-400" size={16} />
+                    <input type={showConfirmPassword ? 'text' : 'password'} name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} className={`${fieldClass(errors.confirmPassword)} pr-10`} placeholder="Re-enter" />
+                    <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-3.5 text-slate-400">
+                      {showConfirmPassword ? <FiEyeOff size={16} /> : <FiEye size={16} />}
                     </button>
                   </div>
-                  {errors.confirmPassword && (
-                    <p className="text-red-500 text-xs mt-1">{errors.confirmPassword}</p>
-                  )}
+                  {errors.confirmPassword && <p className="text-rose-500 text-xs mt-1">{errors.confirmPassword}</p>}
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Requested role
-                  </label>
+                <div className="sm:col-span-2">
+                  <label className="block text-sm font-medium text-slate-700 mb-2">I want to work as</label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {[
-                      { value: 'staff', title: 'Staff', text: 'Orders, store floor, and customers' },
-                      { value: 'management', title: 'Management', text: 'Inventory, add product, reports' }
+                      { value: 'staff', title: 'Staff', text: 'Store, orders, customers' },
+                      { value: 'management', title: 'Management', text: 'Inventory, stock, reports' }
                     ].map((option) => (
                       <button
                         type="button"
@@ -355,112 +248,55 @@ const SignUp = () => {
                         onClick={() => setFormData({ ...formData, requestedRole: option.value })}
                         className={`text-left p-4 rounded-xl border-2 transition ${
                           formData.requestedRole === option.value
-                            ? 'border-blue-600 bg-blue-50'
-                            : 'border-gray-200 hover:border-blue-200'
+                            ? 'border-teal-600 bg-teal-50'
+                            : 'border-slate-200 hover:border-teal-200 bg-white'
                         }`}
                       >
-                        <p className="font-semibold text-gray-900">{option.title}</p>
-                        <p className="text-xs text-gray-500 mt-1">{option.text}</p>
+                        <p className="font-semibold text-slate-900">{option.title}</p>
+                        <p className="text-xs text-slate-500 mt-1">{option.text}</p>
                       </button>
                     ))}
                   </div>
-                  <p className="text-xs text-gray-500 mt-2">
-                    Your account starts as User. An admin assigns Staff or Management after review.
+                  <p className="text-xs text-slate-500 mt-2">
+                    You always start as <strong>User (pending)</strong>. Admin must approve before you get Staff or Management access.
                   </p>
                 </div>
 
-                {/* Terms Agreement */}
-                <div className="flex items-start">
+                <div className="sm:col-span-2 flex items-start gap-3">
                   <input
                     type="checkbox"
                     name="agreeTerms"
                     checked={formData.agreeTerms}
                     onChange={handleChange}
-                    className="mt-1 mr-3 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    className="mt-1 rounded border-slate-300 text-teal-700 focus:ring-teal-500"
                   />
-                  <label className="text-sm text-gray-600">
-                    I agree to the <a href="/terms" className="text-blue-600 hover:underline">Terms of Service</a> and 
-                    {' '}<a href="/privacy" className="text-blue-600 hover:underline">Privacy Policy</a>
+                  <label className="text-sm text-slate-600">
+                    I understand my account needs admin approval before I can use the store system.
                   </label>
                 </div>
-                {errors.agreeTerms && (
-                  <p className="text-red-500 text-xs">{errors.agreeTerms}</p>
-                )}
+                {errors.agreeTerms && <p className="sm:col-span-2 text-rose-500 text-xs">{errors.agreeTerms}</p>}
 
-                {/* Submit Button */}
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className={`w-full py-3 px-4 rounded-lg text-white font-medium transition flex items-center justify-center ${
-                    loading 
-                      ? 'bg-blue-300 cursor-not-allowed' 
-                      : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700'
-                  }`}
-                >
-                  {loading ? (
-                    <>
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                      Creating Account...
-                    </>
-                  ) : (
-                    <>
-                      Create Account
-                      <FiArrowRight className="ml-2" size={18} />
-                    </>
-                  )}
-                </button>
+                <div className="sm:col-span-2">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full py-3.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-semibold transition disabled:opacity-60 flex items-center justify-center gap-2 shadow-lg shadow-teal-900/15"
+                  >
+                    {loading ? 'Creating account…' : 'Create my account'}
+                    {!loading && <FiArrowRight />}
+                  </button>
+                </div>
               </form>
 
-              {/* Login Link */}
-              <p className="mt-6 text-center text-sm text-gray-600">
+              <p className="mt-6 text-center text-sm text-slate-600">
                 Already have an account?{' '}
-                <Link to="/login" className="text-blue-600 hover:text-blue-700 font-medium">
-                  Sign in here
+                <Link to="/login" className="text-teal-700 font-semibold hover:underline">
+                  Sign in
                 </Link>
               </p>
             </div>
-
-            {/* Right Side - Info */}
-            <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-8 text-white md:w-80">
-              <div className="h-full flex flex-col justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold mb-4">Why Join Us?</h2>
-                  <ul className="space-y-4">
-                    <li className="flex items-start">
-                      <FiCheckCircle className="mr-3 flex-shrink-0 mt-0.5" size={18} />
-                      <span>Manage inventory efficiently</span>
-                    </li>
-                    <li className="flex items-start">
-                      <FiCheckCircle className="mr-3 flex-shrink-0 mt-0.5" size={18} />
-                      <span>Track sales and customers</span>
-                    </li>
-                    <li className="flex items-start">
-                      <FiCheckCircle className="mr-3 flex-shrink-0 mt-0.5" size={18} />
-                      <span>Generate insightful reports</span>
-                    </li>
-                    <li className="flex items-start">
-                      <FiCheckCircle className="mr-3 flex-shrink-0 mt-0.5" size={18} />
-                      <span>Real-time analytics dashboard</span>
-                    </li>
-                    <li className="flex items-start">
-                      <FiCheckCircle className="mr-3 flex-shrink-0 mt-0.5" size={18} />
-                      <span>Secure and reliable platform</span>
-                    </li>
-                  </ul>
-                </div>
-                
-                <div className="mt-8 pt-6 border-t border-blue-400">
-                  <p className="text-sm text-blue-100">
-                    Already have an account?<br />
-                    <Link to="/login" className="font-bold hover:underline">
-                      Sign in →
-                    </Link>
-                  </p>
-                </div>
-              </div>
-            </div>
           </div>
-        </div>
+        </section>
       </div>
     </div>
   );
